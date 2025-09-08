@@ -49,7 +49,6 @@ async function launchBrowser() {
     ],
   });
 }
-
 // Debug 
 app.get("/debug-pdf", async (req, res) => {
   try {
@@ -61,7 +60,6 @@ app.get("/debug-pdf", async (req, res) => {
 
     const pdfBuffer = await page.pdf({ format: "A4", printBackground: true });
     await browser.close();
-
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Length", pdfBuffer.length);
     res.send(pdfBuffer);
@@ -72,7 +70,6 @@ app.get("/debug-pdf", async (req, res) => {
       .json({ error: err.message || "Error generating debug PDF" });
   }
 });
-
 app.post("/generate-pdf", async (req, res) => {
   const { html } = req.body;
 
@@ -92,7 +89,6 @@ app.post("/generate-pdf", async (req, res) => {
     });
 
     await browser.close();
-
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Length", pdfBuffer.length);
     res.send(pdfBuffer);
@@ -107,7 +103,6 @@ app.use((err, req, res, next) => {
   console.error("Unhandled error:", err);
   res.status(500).json({ error: "Internal server error" });
 });
-
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
 });
