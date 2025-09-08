@@ -2,6 +2,9 @@ const express = require("express");
 const cors = require("cors");
 const bodyParser = require("body-parser");
 const puppeteer = require("puppeteer");
+const fs = require("fs");
+const path = require("path");
+const crypto = require("crypto");
 
 if (process.env.NODE_ENV !== "production") {
   require("dotenv").config({ path: ".env.local" });
@@ -10,6 +13,7 @@ if (process.env.NODE_ENV !== "production") {
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Allowed origins for CORS
 const allowedOrigins = [
   "https://readmecodegen.vercel.app",
   "http://localhost:9002",
@@ -32,13 +36,32 @@ app.use(
 
 app.use(bodyParser.json({ limit: "10mb" }));
 
-app.get("/health", (req, res) => {
-  res.json({ status: "OK", timestamp: new Date().toISOString() });
-});
+// Ensure cache folder exists
+const CACHE_DIR = path.join(__dirname, "pdf_cache");
+if (!fs.existsSync(CACHE_DIR)) fs.mkdirSync(CACHE_DIR);
 
+// Utility functions
+function getCacheFilePath(html) {
+  const hash = crypto.createHash("md5").update(html).digest("hex");
+  return path.join(CACHE_DIR, `${hash}.pdf`);
+}
+
+// Cleanup old cached PDFs (older than 1 day)
+function cleanupOldCache() {
+  const files = fs.readdirSync(CACHE_DIR);
+  const now = Date.now();
+  files.forEach((file) => {
+    const filePath = path.join(CACHE_DIR, file);
+    const stats = fs.statSync(filePath);
+    if (now - stats.mtimeMs > 1000 * 60 * 60 * 24) {
+      fs.unlinkSync(filePath);
+    }
+  });
+}
+
+// Launch Puppeteer browser
 async function launchBrowser() {
   return puppeteer.launch({
-    executablePath: puppeteer.executablePath(),
     headless: true,
     args: [
       "--no-sandbox",
@@ -49,17 +72,24 @@ async function launchBrowser() {
     ],
   });
 }
-// Debug 
+
+// Health check
+app.get("/health", (req, res) => {
+  res.json({ status: "OK", timestamp: new Date().toISOString() });
+});
+
+// Debug route
 app.get("/debug-pdf", async (req, res) => {
   try {
     const browser = await launchBrowser();
     const page = await browser.newPage();
-    await page.setContent("<h1>Hello from Render on host 2 (Debug PDF)</h1>", {
+    await page.setContent("<h1>Hello from Render (Debug PDF)</h1>", {
       waitUntil: "networkidle0",
     });
 
     const pdfBuffer = await page.pdf({ format: "A4", printBackground: true });
     await browser.close();
+
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Length", pdfBuffer.length);
     res.send(pdfBuffer);
@@ -70,11 +100,21 @@ app.get("/debug-pdf", async (req, res) => {
       .json({ error: err.message || "Error generating debug PDF" });
   }
 });
+
+// Generate PDF with caching
 app.post("/generate-pdf", async (req, res) => {
   const { html } = req.body;
+  if (!html) return res.status(400).json({ error: "No HTML provided" });
 
-  if (!html) {
-    return res.status(400).json({ error: "No HTML provided" });
+  cleanupOldCache(); // Clean old cached PDFs
+
+  const cacheFilePath = getCacheFilePath(html);
+  if (fs.existsSync(cacheFilePath)) {
+    console.log("Serving PDF from cache");
+    const pdfBuffer = fs.readFileSync(cacheFilePath);
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Length", pdfBuffer.length);
+    return res.send(pdfBuffer);
   }
 
   try {
@@ -89,6 +129,10 @@ app.post("/generate-pdf", async (req, res) => {
     });
 
     await browser.close();
+
+    // Save PDF to cache
+    fs.writeFileSync(cacheFilePath, pdfBuffer);
+
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Length", pdfBuffer.length);
     res.send(pdfBuffer);
@@ -103,6 +147,7 @@ app.use((err, req, res, next) => {
   console.error("Unhandled error:", err);
   res.status(500).json({ error: "Internal server error" });
 });
+
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
 });
