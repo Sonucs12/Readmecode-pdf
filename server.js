@@ -62,6 +62,7 @@ function cleanupOldCache() {
 // Launch Puppeteer browser
 async function launchBrowser() {
   return puppeteer.launch({
+    executablePath: puppeteer.executablePath(),
     headless: true,
     args: [
       "--no-sandbox",
