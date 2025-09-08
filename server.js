@@ -243,7 +243,7 @@ app.get("/health", (req, res) => {
 // Debug route
 app.get("/debug-pdf", async (req, res) => {
   try {
-    const html = "<h1>Hello from Render (Debug PDF)</h1>";
+    const html = "<h1>Hello from Render.this is text paragraph (Debug PDF)</h1>";
     const pdfBuffer = await generatePDF(html);
 
     res.setHeader("Content-Type", "application/pdf");
