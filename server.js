@@ -38,7 +38,14 @@ app.use(bodyParser.json({ limit: "10mb" }));
 
 // Ensure cache folder exists
 const CACHE_DIR = path.join(__dirname, "pdf_cache");
-if (!fs.existsSync(CACHE_DIR)) fs.mkdirSync(CACHE_DIR);
+if (!fs.existsSync(CACHE_DIR)) {
+  try {
+    fs.mkdirSync(CACHE_DIR);
+    console.log("✅ pdf_cache folder created successfully");
+  } catch (err) {
+    console.error("❌ Failed to create pdf_cache folder:", err);
+  }
+}
 
 // Utility functions
 function getCacheFilePath(html) {
@@ -48,13 +55,19 @@ function getCacheFilePath(html) {
 
 // Cleanup old cached PDFs (older than 1 day)
 function cleanupOldCache() {
+  if (!fs.existsSync(CACHE_DIR)) return;
   const files = fs.readdirSync(CACHE_DIR);
   const now = Date.now();
   files.forEach((file) => {
     const filePath = path.join(CACHE_DIR, file);
-    const stats = fs.statSync(filePath);
-    if (now - stats.mtimeMs > 1000 * 60 * 60 * 24) {
-      fs.unlinkSync(filePath);
+    try {
+      const stats = fs.statSync(filePath);
+      if (now - stats.mtimeMs > 1000 * 60 * 60 * 24) {
+        fs.unlinkSync(filePath);
+        console.log(`🗑️ Deleted old cache: ${file}`);
+      }
+    } catch (err) {
+      console.error("Error cleaning cache file:", file, err);
     }
   });
 }
@@ -111,11 +124,15 @@ app.post("/generate-pdf", async (req, res) => {
 
   const cacheFilePath = getCacheFilePath(html);
   if (fs.existsSync(cacheFilePath)) {
-    console.log("Serving PDF from cache");
-    const pdfBuffer = fs.readFileSync(cacheFilePath);
-    res.setHeader("Content-Type", "application/pdf");
-    res.setHeader("Content-Length", pdfBuffer.length);
-    return res.send(pdfBuffer);
+    console.log("📁 Serving PDF from cache");
+    try {
+      const pdfBuffer = fs.readFileSync(cacheFilePath);
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Length", pdfBuffer.length);
+      return res.send(pdfBuffer);
+    } catch (err) {
+      console.error("❌ Failed to read cached PDF:", err);
+    }
   }
 
   try {
@@ -132,7 +149,12 @@ app.post("/generate-pdf", async (req, res) => {
     await browser.close();
 
     // Save PDF to cache
-    fs.writeFileSync(cacheFilePath, pdfBuffer);
+    try {
+      fs.writeFileSync(cacheFilePath, pdfBuffer);
+      console.log(`💾 Saved PDF to cache: ${cacheFilePath}`);
+    } catch (err) {
+      console.error("❌ Failed to save PDF to cache:", err);
+    }
 
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Length", pdfBuffer.length);
