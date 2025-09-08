@@ -1,0 +1,26 @@
+{
+  "name": "redmicodegen-backend",
+  "version": "1.0.0",
+  "description": "Backend for ReadmeCodeGen",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "postinstall": "npx puppeteer browsers install chrome"
+  },
+  "dependencies": {
+    "body-parser": "^2.2.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^5.1.0",
+    "pdf-lib": "^1.17.1",
+    "puppeteer": "^24.19.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Sonucs12/redmicodegen-backend.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Sonucs12/redmicodegen-backend/issues"
+  },
+  "homepage": "https://github.com/Sonucs12/redmicodegen-backend#readme"
+}
