@@ -15,27 +15,24 @@ if (process.env.NODE_ENV !== "production") {
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Browser pool management
 let browserWSEndpoint = null;
 let browserInstance = null;
 let browserLastUsed = Date.now();
-const BROWSER_IDLE_TIMEOUT = 5 * 60 * 1000; // 5 minutes
-const MAX_PAGES = 10; // Concurrent pages limit
+const BROWSER_IDLE_TIMEOUT = 5 * 60 * 1000;
+const MAX_PAGES = 10;
 
 // In-memory cache for frequently accessed PDFs
 const memoryCache = new Map();
-const MAX_MEMORY_CACHE_SIZE = 50; // Maximum items in memory
-const MEMORY_CACHE_TTL = 10 * 60 * 1000; // 10 minutes
+const MAX_MEMORY_CACHE_SIZE = 50;
+const MEMORY_CACHE_TTL = 10 * 60 * 1000;
 
-// Allowed origins for CORS
 const allowedOrigins = [
   "https://readmecodegen.vercel.app",
   "http://localhost:9002",
   "http://127.0.0.1:9002",
 ];
 
-// Middleware
-app.use(compression()); // Enable gzip compression
+app.use(compression());
 app.use(
   cors({
     origin: function (origin, callback) {
@@ -52,7 +49,6 @@ app.use(
 
 app.use(bodyParser.json({ limit: "10mb" }));
 
-// Ensure cache folder exists
 const CACHE_DIR = path.join(__dirname, "pdf_cache");
 if (!fsSync.existsSync(CACHE_DIR)) {
   try {
@@ -63,7 +59,6 @@ if (!fsSync.existsSync(CACHE_DIR)) {
   }
 }
 
-// Utility functions
 function getCacheKey(html) {
   return crypto.createHash("md5").update(html).digest("hex");
 }
@@ -72,9 +67,7 @@ function getCacheFilePath(hash) {
   return path.join(CACHE_DIR, `${hash}.pdf`);
 }
 
-// Memory cache management
 function addToMemoryCache(key, buffer) {
-  // Clean old entries if cache is full
   if (memoryCache.size >= MAX_MEMORY_CACHE_SIZE) {
     const firstKey = memoryCache.keys().next().value;
     memoryCache.delete(firstKey);
@@ -128,12 +121,11 @@ async function cleanupOldCache() {
 // Schedule periodic cleanup
 setInterval(() => {
   cleanupOldCache().catch(console.error);
-}, 60 * 60 * 1000); // Run every hour
+}, 60 * 60 * 1000);
 
 // Browser management
 async function getBrowser() {
   try {
-    // Check if browser is still connected
     if (browserInstance && browserInstance.isConnected()) {
       browserLastUsed = Date.now();
       return browserInstance;
@@ -157,7 +149,7 @@ async function getBrowser() {
         "--disable-ipc-flooding-protection",
         "--no-first-run",
         "--no-zygote",
-        "--single-process", // Helps in containerized environments
+        "--single-process",
       ],
     });
 
@@ -190,7 +182,7 @@ setInterval(async () => {
       console.error("Error closing idle browser:", err);
     }
   }
-}, 60 * 1000); // Check every minute
+}, 60 * 1000);
 
 // Generate PDF
 async function generatePDF(html) {
@@ -200,22 +192,26 @@ async function generatePDF(html) {
   try {
     page = await browser.newPage();
 
-    // Optimize page settings
     await page.setViewport({ width: 1920, height: 1080 });
-    await page.setJavaScriptEnabled(false); // Disable JS if not needed
+    await page.setJavaScriptEnabled(false);
 
-    // Set content with minimal wait
     await page.setContent(html, {
-      waitUntil: "domcontentloaded", // Faster than networkidle0
+      waitUntil: "domcontentloaded",
       timeout: 10000,
     });
 
-    // Generate PDF with optimized settings
     const pdfBuffer = await page.pdf({
       format: "A4",
       printBackground: true,
-      margin: { top: "20px", bottom: "20px", left: "20px", right: "20px" },
+      margin: { top: "30px", bottom: "30px", left: "20px", right: "20px" },
       preferCSSPageSize: false,
+      displayHeaderFooter: true,
+      headerTemplate: "<div></div>", // Empty header
+      footerTemplate: `
+        <div style="font-size: 10px; text-align: center; width: 100%; color: #666;">
+          Page <span class="pageNumber"></span> of <span class="totalPages"></span>
+        </div>
+      `,
     });
 
     return pdfBuffer;
@@ -243,7 +239,8 @@ app.get("/health", (req, res) => {
 // Debug route
 app.get("/debug-pdf", async (req, res) => {
   try {
-    const html = "<h1>Hello from Render.this is text paragraph (Debug PDF)</h1>";
+    const html =
+      "<h1>Hello from Render.this is text paragraph (Debug PDF)</h1>";
     const pdfBuffer = await generatePDF(html);
 
     res.setHeader("Content-Type", "application/pdf");
@@ -298,9 +295,7 @@ app.post("/generate-pdf", async (req, res) => {
     console.log("🔨 Generating new PDF...");
     const pdfBuffer = await generatePDF(html);
 
-    // Save to both caches asynchronously (don't wait)
     Promise.all([
-      // Save to disk cache
       fs
         .writeFile(cacheFilePath, pdfBuffer)
         .then(() => {
@@ -310,7 +305,6 @@ app.post("/generate-pdf", async (req, res) => {
           console.error("❌ Failed to save PDF to disk cache:", err);
         }),
 
-      // Add to memory cache
       Promise.resolve(addToMemoryCache(cacheKey, pdfBuffer)),
     ]).catch(console.error);
 
@@ -324,7 +318,6 @@ app.post("/generate-pdf", async (req, res) => {
   }
 });
 
-// Graceful shutdown
 async function gracefulShutdown() {
   console.log("📍 Shutting down gracefully...");
 
@@ -343,7 +336,6 @@ async function gracefulShutdown() {
 process.on("SIGTERM", gracefulShutdown);
 process.on("SIGINT", gracefulShutdown);
 
-// Global error handler
 app.use((err, req, res, next) => {
   console.error("Unhandled error:", err);
   res.status(500).json({ error: "Internal server error" });
@@ -352,7 +344,6 @@ app.use((err, req, res, next) => {
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
 
-  // Pre-warm browser on startup
   getBrowser()
     .then(() => {
       console.log("✅ Browser pre-warmed and ready");
