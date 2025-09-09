@@ -28,6 +28,7 @@ const MEMORY_CACHE_TTL = 10 * 60 * 1000;
 
 const allowedOrigins = [
   "https://readmecodegen.vercel.app",
+  "https://www.readmecodegen.com",
   "http://localhost:9002",
   "http://127.0.0.1:9002",
 ];
