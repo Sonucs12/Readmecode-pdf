@@ -211,9 +211,9 @@ async function generatePDF(html) {
       displayHeaderFooter: true,
       headerTemplate: "<div></div>", // Empty header
       footerTemplate: `
-          <div style="font-size: 10px; width: 100%; color: #666; display: flex; justify-content: center; align-items: center;">
-            <span>ReadmeCodeGen</span>
-            <span style="margin-left: auto;padding-left: 10px;">Page <span class="pageNumber"></span></span>
+          <div style="font-size: 10px; width: 100%; color: #666; padding-left: 10px; padding-right: 10px;">
+            <span style="text-align: center;">ReadmeCodeGen</span>
+            <span style="text-align: right;">Page <span class="pageNumber"></span></span>
           </div>
         `,
     });
