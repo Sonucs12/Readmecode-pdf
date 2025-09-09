@@ -196,9 +196,12 @@ async function generatePDF(html) {
     await page.setJavaScriptEnabled(false);
 
     await page.setContent(html, {
-      waitUntil: "domcontentloaded",
-      timeout: 10000,
+      waitUntil: "networkidle0",
+      timeout: 20000,
     });
+
+    // Wait for fonts to be ready
+    await page.evaluateHandle("document.fonts.ready");
 
     const pdfBuffer = await page.pdf({
       format: "A4",
@@ -210,7 +213,7 @@ async function generatePDF(html) {
       footerTemplate: `
           <div style="font-size: 10px; width: 100%; color: #666; display: flex; justify-content: center; align-items: center;">
             <span>ReadmeCodeGen</span>
-            <span style="margin-left: auto;">Page <span class="pageNumber"></span></span>
+            <span style="margin-left: auto;padding-left: 10px;">Page <span class="pageNumber"></span></span>
           </div>
         `,
     });
