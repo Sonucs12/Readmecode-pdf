@@ -203,7 +203,7 @@ async function generatePDF(html) {
     const pdfBuffer = await page.pdf({
       format: "A4",
       printBackground: true,
-      margin: { top: "30px", bottom: "30px", left: "20px", right: "20px" },
+      margin: { top: "40px", bottom: "40px", left: "20px", right: "20px" },
       preferCSSPageSize: false,
       displayHeaderFooter: true,
       headerTemplate: "<div></div>", // Empty header
