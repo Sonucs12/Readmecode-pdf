@@ -7,7 +7,7 @@ const fsSync = require("fs");
 const path = require("path");
 const crypto = require("crypto");
 const compression = require("compression");
-
+import visitorRoutes from "./visitorRoutes.js";
 if (process.env.NODE_ENV !== "production") {
   require("dotenv").config({ path: ".env.local" });
 }
@@ -345,6 +345,17 @@ app.use((err, req, res, next) => {
   console.error("Unhandled error:", err);
   res.status(500).json({ error: "Internal server error" });
 });
+
+
+
+// Visitor counter routes
+app.use("/api", visitorRoutes);
+
+// Health check
+app.get("/", (req, res) => res.send("ReadmeCodeGen API is running"));
+
+
+
 
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
