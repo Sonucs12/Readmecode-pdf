@@ -33,7 +33,7 @@ const allowedOrigins = [
   "http://127.0.0.1:9002",
 ];
 // Only allow all origins for visitor/badge routes
-app.use("/api/badges", cors({ origin: "*" }), visitorRoutes);
+app.use("/api", cors({ origin: "*" }), visitorRoutes);
 app.use(compression());
 app.use(
   cors({
