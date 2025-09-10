@@ -32,6 +32,7 @@ const allowedOrigins = [
   "http://localhost:9002",
   "http://127.0.0.1:9002",
 ];
+app.use(bodyParser.json({ limit: "10mb" }));
 // Only allow all origins for visitor/badge routes
 app.use("/api", cors({ origin: "*" }), visitorRoutes);
 app.use(compression());
@@ -48,8 +49,6 @@ app.use(
     credentials: true,
   })
 );
-
-app.use(bodyParser.json({ limit: "10mb" }));
 
 const CACHE_DIR = path.join(__dirname, "pdf_cache");
 if (!fsSync.existsSync(CACHE_DIR)) {
