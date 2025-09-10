@@ -9,7 +9,13 @@ const crypto = require("crypto");
 const compression = require("compression");
 const visitorRoutes = require("./visitorRoutes");
 if (process.env.NODE_ENV !== "production") {
+  console.log("🔧 Loading environment variables from .env.local");
   require("dotenv").config({ path: ".env.local" });
+  console.log("✅ Environment variables loaded");
+  console.log(
+    "Firebase Project ID:",
+    process.env.FIREBASE_PROJECT_ID ? "✅ Set" : "❌ Missing"
+  );
 }
 
 const app = express();
@@ -362,4 +368,15 @@ app.listen(PORT, () => {
     .catch((err) => {
       console.error("⚠️ Failed to pre-warm browser:", err);
     });
+});
+
+// Add error handling for uncaught exceptions
+process.on("uncaughtException", (error) => {
+  console.error("❌ Uncaught Exception:", error);
+  process.exit(1);
+});
+
+process.on("unhandledRejection", (reason, promise) => {
+  console.error("❌ Unhandled Rejection at:", promise, "reason:", reason);
+  process.exit(1);
 });

@@ -6,8 +6,8 @@ const {
   getDoc,
   setDoc,
   updateDoc,
-  increment,
   onSnapshot,
+  // Remove serverTimestamp import
 } = require("firebase/firestore");
 
 const firebaseConfig = {
@@ -21,35 +21,73 @@ const firebaseConfig = {
 };
 
 let db = null;
+let isInitialized = false;
 
 function initializeFirebase() {
-  if (!getApps().length) {
-    initializeApp(firebaseConfig);
+  try {
+    if (!isInitialized) {
+      if (!getApps().length) {
+        console.log("🔥 Initializing Firebase app...");
+        initializeApp(firebaseConfig);
+        console.log("✅ Firebase app initialized");
+      }
+      db = getFirestore();
+      isInitialized = true;
+      console.log("✅ Firestore database connected");
+    }
+    return db;
+  } catch (error) {
+    console.error("❌ Firebase initialization error:", error);
+    throw error;
   }
-  db = getFirestore();
-  return db;
 }
 
 async function incrementVisitorCount(userId) {
-  if (!db) initializeFirebase();
-  const userRef = doc(db, "users", userId);
-  const now = new Date().toISOString();
-  // Use merge with server transform so we don't set any custom defaults
-  await setDoc(
-    userRef,
-    {
-      visitorCount: increment(1),
-      lastVisit: now,
-    },
-    { merge: true }
-  );
+  try {
+    if (!db) initializeFirebase();
+    const userRef = doc(db, "users", userId);
+
+    // Get current data first
+    const userSnap = await getDoc(userRef);
+    const currentData = userSnap.exists() ? userSnap.data() : {};
+    const currentCount = currentData.visitorCount || 0;
+
+    // Increment and preserve existing badge field
+    await setDoc(
+      userRef,
+      {
+        badge: currentData.badge || "style1", // Preserve existing badge or default
+        visitorCount: currentCount + 1,
+        lastVisit: new Date().toISOString(), // Use ISO string for consistency
+      },
+      { merge: true }
+    );
+    console.log(
+      `✅ Successfully incremented visitor count for user: ${userId} from ${currentCount} to ${
+        currentCount + 1
+      }`
+    );
+  } catch (error) {
+    console.error(
+      `❌ Error incrementing visitor count for user ${userId}:`,
+      error
+    );
+    throw error;
+  }
 }
 
 async function getUserData(userId) {
-  if (!db) initializeFirebase();
-  const userRef = doc(db, "users", userId);
-  const userSnap = await getDoc(userRef);
-  return userSnap.exists() ? userSnap.data() : null;
+  try {
+    if (!db) initializeFirebase();
+    const userRef = doc(db, "users", userId);
+    const userSnap = await getDoc(userRef);
+    const data = userSnap.exists() ? userSnap.data() : null;
+    console.log(`📊 Retrieved user data for ${userId}:`, data);
+    return data;
+  } catch (error) {
+    console.error(`❌ Error getting user data for ${userId}:`, error);
+    throw error;
+  }
 }
 
 // Realtime subscription using snapshots
@@ -73,9 +111,15 @@ function subscribeToUserData(userId, onData, onError) {
 }
 
 async function setUserBadge(userId, badge) {
-  if (!db) initializeFirebase();
-  const userRef = doc(db, "users", userId);
-  await setDoc(userRef, { badge }, { merge: true });
+  try {
+    if (!db) initializeFirebase();
+    const userRef = doc(db, "users", userId);
+    await setDoc(userRef, { badge }, { merge: true });
+    console.log(`✅ Successfully set badge for user: ${userId} to ${badge}`);
+  } catch (error) {
+    console.error(`❌ Error setting badge for user ${userId}:`, error);
+    throw error;
+  }
 }
 
 module.exports = {

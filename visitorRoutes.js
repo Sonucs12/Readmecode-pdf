@@ -15,19 +15,89 @@ const visitorCounts = {}; // { userId: count }
 router.post("/increment", async (req, res) => {
   try {
     const { userId } = req.body;
-    if (!userId) return res.status(400).json({ error: "Missing userId" });
+    console.log(`🔄 Increment request received for userId: ${userId}`);
 
-    // Increment in Firestore
-    await incrementVisitorCount(userId);
+    if (!userId) {
+      console.log("❌ Missing userId in request");
+      return res.status(400).json({ error: "Missing userId" });
+    }
 
-    // Optionally, keep the in-memory count for fast badge serving (optional)
-    if (!visitorCounts[userId]) visitorCounts[userId] = 0;
+    // Try Firebase first, fallback to in-memory if it fails
+    console.log("🔍 Testing Firebase connection...");
+    let firebaseWorking = false;
+    let firebaseCount = 0;
+
+    try {
+      const userData = await getUserData(userId);
+      console.log("✅ Firebase connection working, current data:", userData);
+      firebaseWorking = true;
+      firebaseCount = userData?.visitorCount || 0;
+    } catch (firebaseError) {
+      console.error(
+        "❌ Firebase connection failed, using in-memory fallback:",
+        firebaseError.message
+      );
+      firebaseWorking = false;
+    }
+
+    // Increment in Firestore if available, otherwise use in-memory
+    if (firebaseWorking) {
+      console.log("📈 Attempting to increment visitor count in Firebase...");
+      try {
+        await incrementVisitorCount(userId);
+        console.log("✅ Firebase increment successful");
+        firebaseCount += 1;
+      } catch (incrementError) {
+        console.error(
+          "❌ Firebase increment failed, falling back to in-memory:",
+          incrementError.message
+        );
+        firebaseWorking = false;
+      }
+    }
+
+    // Keep the in-memory count for fast badge serving
+    if (!visitorCounts[userId]) visitorCounts[userId] = firebaseCount;
     visitorCounts[userId] += 1;
 
-    return res.json({ success: true, count: visitorCounts[userId] });
+    console.log(
+      `✅ Increment successful. New count for ${userId}: ${
+        visitorCounts[userId]
+      } (${firebaseWorking ? "Firebase" : "In-Memory"})`
+    );
+
+    return res.json({
+      success: true,
+      count: visitorCounts[userId],
+      storage: firebaseWorking ? "firebase" : "memory",
+    });
   } catch (err) {
-    console.error("Increment error:", err);
-    return res.status(500).json({ error: "Server error" });
+    console.error("❌ Increment error:", err);
+    return res
+      .status(500)
+      .json({ error: "Server error", details: err.message });
+  }
+});
+
+// Debug endpoint to check user data
+router.get("/debug/:userId", async (req, res) => {
+  try {
+    const { userId } = req.params;
+    console.log(`🔍 Debug request for userId: ${userId}`);
+
+    // Get data from both sources
+    const firestoreData = await getUserData(userId);
+    const memoryCount = visitorCounts[userId];
+
+    res.json({
+      userId,
+      firestoreData,
+      memoryCount,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (err) {
+    console.error("Debug error:", err);
+    res.status(500).json({ error: "Debug error", details: err.message });
   }
 });
 
