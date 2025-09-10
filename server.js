@@ -32,7 +32,8 @@ const allowedOrigins = [
   "http://localhost:9002",
   "http://127.0.0.1:9002",
 ];
-
+// Only allow all origins for visitor/badge routes
+app.use("/api", cors({ origin: "*" }), visitorRoutes);
 app.use(compression());
 app.use(
   cors({
@@ -346,16 +347,11 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: "Internal server error" });
 });
 
-
-
-// Visitor counter routes
-app.use("/api", visitorRoutes);
+// // Visitor counter routes
+// app.use("/api", visitorRoutes);
 
 // Health check
 app.get("/", (req, res) => res.send("ReadmeCodeGen API is running"));
-
-
-
 
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
