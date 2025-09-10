@@ -1,5 +1,5 @@
 // visitorRoutes.js
-import express from "express";
+const express = require("express");
 const router = express.Router();
 
 // Use a simple in-memory store for demonstration (replace with DB in production)
@@ -43,4 +43,4 @@ router.get("/badge/:userId", (req, res) => {
   }
 });
 
-export default router;
+module.exports = router;

@@ -7,7 +7,7 @@ const fsSync = require("fs");
 const path = require("path");
 const crypto = require("crypto");
 const compression = require("compression");
-import visitorRoutes from "./visitorRoutes.js";
+const visitorRoutes = require("./visitorRoutes");
 if (process.env.NODE_ENV !== "production") {
   require("dotenv").config({ path: ".env.local" });
 }
