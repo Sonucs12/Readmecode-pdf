@@ -28,6 +28,8 @@ const allowedOrigins = [
 app.use(bodyParser.json({ limit: "10mb" }));
 // Only allow all origins for visitor/badge routes
 app.use("/api", cors({ origin: "*" }), visitorRoutes);
+// Compatibility: also mount visitor routes at root so clients can call /init, /increment, /badge
+app.use("/", cors({ origin: "*" }), visitorRoutes);
 app.use(compression());
 app.use(
   cors({
