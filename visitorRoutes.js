@@ -34,7 +34,8 @@ setInterval(() => {
 // Receive init payload from frontend and keep it temporarily in memory
 router.post("/init", (req, res) => {
   try {
-    const { userId, style, timestamp, bg, textColor } = req.body || {};
+    const { userId, style, timestamp, bg, textColor, bgGradient } =
+      req.body || {};
     if (!userId || !style || !timestamp) {
       return res
         .status(400)
@@ -44,7 +45,7 @@ router.post("/init", (req, res) => {
     // Optional colors with defaults; you can keep nulls if you prefer
     const safeBg = bg ?? "#4c51bf";
     const safeTextColor = textColor ?? "#ffffff";
-
+    const safeBgGradient = bgGradient ?? "#4c51bf";
     initStore[userId] = {
       userId,
       style,
@@ -52,7 +53,18 @@ router.post("/init", (req, res) => {
       receivedAt: new Date().toISOString(),
       bg: safeBg,
       textColor: safeTextColor,
+      bgGradient: safeBgGradient,
     };
+
+    console.log("🆕 /init payload:", {
+      userId,
+      style,
+      timestamp,
+      bg: safeBg,
+      textColor: safeTextColor,
+      bgGradient: safeBgGradient,
+      receivedAt: initStore[userId].receivedAt,
+    });
 
     return res.json({ success: true });
   } catch (err) {
@@ -215,7 +227,7 @@ router.post("/badge/style", async (req, res) => {
 router.get("/badge/:userId", async (req, res) => {
   try {
     const { userId } = req.params;
-    const { style, bg, textColor } = req.query;
+    const { style, bg, textColor, bgGradient } = req.query;
 
     // Use in-memory count as fast source; optionally fall back to Firestore
     let count = visitorCounts[userId];
@@ -241,7 +253,16 @@ router.get("/badge/:userId", async (req, res) => {
       if (!effectiveStyle) effectiveStyle = "style1";
     }
 
-    const svg = renderBadge({ style: effectiveStyle, count, bg, textColor });
+    // Resolve gradient: query param > initStore > fallback to bg
+    const effectiveGradient = bgGradient || initStore[userId]?.bgGradient || bg;
+
+    const svg = renderBadge({
+      style: effectiveStyle,
+      count,
+      bg,
+      bgGradient: effectiveGradient,
+      textColor,
+    });
     res.setHeader("Content-Type", "image/svg+xml");
     res.send(svg);
   } catch (err) {
