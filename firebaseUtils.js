@@ -62,11 +62,7 @@ async function incrementVisitorCount(userId) {
       },
       { merge: true }
     );
-    console.log(
-      `✅ Successfully incremented visitor count for user: ${userId} from ${currentCount} to ${
-        currentCount + 1
-      }`
-    );
+    console.log(`✅ Incremented ${userId} → ${currentCount + 1}`);
   } catch (error) {
     console.error(
       `❌ Error incrementing visitor count for user ${userId}:`,
@@ -82,7 +78,15 @@ async function getUserData(userId) {
     const userRef = doc(db, "users", userId);
     const userSnap = await getDoc(userRef);
     const data = userSnap.exists() ? userSnap.data() : null;
-    console.log(`📊 Retrieved user data for ${userId}:`, data);
+    if (data) {
+      console.log(
+        `📊 Retrieved ${userId}: exists, count=${
+          data.visitorCount ?? 0
+        }, verified=${data.verified === true}`
+      );
+    } else {
+      console.log(`📊 Retrieved ${userId}: not found`);
+    }
     return data;
   } catch (error) {
     console.error(`❌ Error getting user data for ${userId}:`, error);
@@ -95,18 +99,15 @@ async function upsertInitData(userId, initData, options = {}) {
   try {
     if (!db) initializeFirebase();
     const userRef = doc(db, "users", userId);
-    const { style, timestamp, receivedAt } = initData || {};
+    const { style } = initData || {};
     const payload = {};
     if (style) payload.badge = style;
-    if (timestamp) payload.initTimestamp = timestamp;
-    if (receivedAt) payload.initReceivedAt = receivedAt;
     if (options.verified === true) {
       payload.verified = true;
-      payload.dataVerified = true;
+      payload.verificationTime = new Date().toISOString();
     }
-    payload.lastInitSync = new Date().toISOString();
     await setDoc(userRef, payload, { merge: true });
-    console.log(`✅ Upserted init data for ${userId}:`, payload);
+    console.log(`✅ Verified init for ${userId}`);
   } catch (error) {
     console.error(`❌ Error upserting init data for ${userId}:`, error);
     throw error;

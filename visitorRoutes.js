@@ -46,7 +46,7 @@ router.post("/init", (req, res) => {
 router.post("/increment", async (req, res) => {
   try {
     const { userId } = req.body;
-    console.log(`🔄 Increment request received for userId: ${userId}`);
+    console.log(`🔄 Increment request for ${userId}`);
 
     if (!userId) {
       console.log("❌ Missing userId in request");
@@ -54,14 +54,14 @@ router.post("/increment", async (req, res) => {
     }
 
     // Try Firebase first, fallback to in-memory if it fails
-    console.log("🔍 Testing Firebase connection...");
+    console.log("🔍 Checking Firestore...");
     let firebaseWorking = false;
     let firebaseCount = 0;
     let userExists = false;
 
     try {
       const userData = await getUserData(userId);
-      console.log("✅ Firebase connection working, current data:", userData);
+      // Keep logs terse; detailed fields logged inside getUserData
       firebaseWorking = true;
       userExists = !!userData;
       firebaseCount = userData?.visitorCount || 0;
