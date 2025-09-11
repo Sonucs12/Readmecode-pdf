@@ -21,8 +21,11 @@ function style1({ count, bg, bgGradient, textColor }) {
   const safeText = sanitizeColor(textColor) || "#ffffff";
   const userBg = sanitizeColor(bg);
   const userGrad = sanitizeColor(bgGradient);
-  const useGradient = !!userGrad && !userBg;
-  const fillSolid = userBg || (!useGradient ? templateDefaultBg : null);
+
+  // Fixed logic: use gradient if bgGradient is provided
+  const useGradient = !!userGrad;
+  const fillSolid = userBg || templateDefaultBg;
+
   const label = `Views: ${count}`;
   const width = clampWidth(label, 150);
   return `
@@ -53,8 +56,11 @@ function style2({ count, bg, bgGradient, textColor }) {
   const safeText = sanitizeColor(textColor) || "#0b1220";
   const userBg = sanitizeColor(bg);
   const userGrad = sanitizeColor(bgGradient);
-  const useGradient = !!userGrad && !userBg;
-  const fillSolid = userBg || (!useGradient ? templateDefaultBg : null);
+
+  // Fixed logic: use gradient if bgGradient is provided
+  const useGradient = !!userGrad;
+  const fillSolid = userBg || templateDefaultBg;
+
   const label = `👁️ ${count}`;
   const width = clampWidth(label, 120);
   return `
@@ -83,8 +89,11 @@ function style3({ count, bg, bgGradient, textColor }) {
   const safeText = sanitizeColor(textColor) || "#00312a";
   const userBg = sanitizeColor(bg);
   const userGrad = sanitizeColor(bgGradient);
-  const useGradient = !!userGrad && !userBg;
-  const fillSolid = userBg || (!useGradient ? templateDefaultBg : null);
+
+  // Fixed logic: use gradient if bgGradient is provided
+  const useGradient = !!userGrad;
+  const fillSolid = userBg || templateDefaultBg;
+
   const label = `${count} visits`;
   const width = clampWidth(label, 140);
   return `
@@ -118,8 +127,11 @@ function style4({ count, bg, bgGradient, textColor }) {
   const safeText = sanitizeColor(textColor) || "#1f1300";
   const userBg = sanitizeColor(bg);
   const userGrad = sanitizeColor(bgGradient);
-  const useGradient = !!userGrad && !userBg;
-  const fillSolid = userBg || (!useGradient ? templateDefaultBg : null);
+
+  // Fixed logic: use gradient if bgGradient is provided
+  const useGradient = !!userGrad;
+  const fillSolid = userBg || templateDefaultBg;
+
   const label = `Visitors ${count}`;
   const width = clampWidth(label, 160);
   return `
@@ -157,8 +169,11 @@ function style5({ count, bg, bgGradient, textColor }) {
   const safeText = sanitizeColor(textColor) || "#ffffff";
   const userBg = sanitizeColor(bg);
   const userGrad = sanitizeColor(bgGradient);
-  const useGradient = !!userGrad && !userBg;
-  const fillSolid = userBg || (!useGradient ? templateDefaultBg : null);
+
+  // Fixed logic: use gradient if bgGradient is provided
+  const useGradient = !!userGrad;
+  const fillSolid = userBg || templateDefaultBg;
+
   const label = `Readme views ${count}`;
   const width = clampWidth(label, 170);
   return `
