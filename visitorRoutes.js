@@ -12,6 +12,24 @@ const { renderBadge, getAvailableStyles } = require("./svgTemplates");
 const visitorCounts = {}; // { userId: count }
 // Temporary init store: holds frontend-provided init data until first validated increment
 const initStore = {}; // { userId: { userId, style, timestamp, receivedAt } }
+const INIT_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+// Periodic cleanup of unverified init entries older than 24 hours
+setInterval(() => {
+  const now = Date.now();
+  let removed = 0;
+  for (const [id, payload] of Object.entries(initStore)) {
+    const receivedAt =
+      payload && payload.receivedAt ? Date.parse(payload.receivedAt) : NaN;
+    if (!Number.isFinite(receivedAt) || now - receivedAt > INIT_TTL_MS) {
+      delete initStore[id];
+      removed += 1;
+    }
+  }
+  if (removed > 0) {
+    console.log(`🧹 Cleaned ${removed} expired init entries`);
+  }
+}, 10 * 60 * 1000); // run every 10 minutes
 
 // Receive init payload from frontend and keep it temporarily in memory
 router.post("/init", (req, res) => {
@@ -79,15 +97,13 @@ router.post("/increment", async (req, res) => {
       try {
         const { upsertInitData } = require("./firebaseUtils");
 
-        // Case A: user exists in Firestore → skip memory validation, just increment
+        // Case A: user exists in Firestore → just increment
         if (userExists) {
           await incrementVisitorCount(userId);
           console.log(
             "✅ Firebase increment successful (existing verified user)"
           );
           firebaseCount += 1;
-          // Clear any stale init memory for this verified user
-          if (initStore[userId]) delete initStore[userId];
         } else {
           // Case B: user not in Firestore → require matching init payload in memory
           const initPayload = initStore[userId];
