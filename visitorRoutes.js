@@ -223,7 +223,22 @@ router.get("/badge/:userId", async (req, res) => {
       visitorCounts[userId] = count;
     }
 
-    const svg = renderBadge({ style, count, bg, textColor });
+    // Resolve style: query param > Firestore badge > pending initStore style > default
+    let effectiveStyle = style;
+    if (!effectiveStyle) {
+      try {
+        const data = await getUserData(userId);
+        effectiveStyle = data?.badge || effectiveStyle;
+      } catch (_) {
+        // ignore
+      }
+      if (!effectiveStyle && initStore[userId]?.style) {
+        effectiveStyle = initStore[userId].style;
+      }
+      if (!effectiveStyle) effectiveStyle = "style1";
+    }
+
+    const svg = renderBadge({ style: effectiveStyle, count, bg, textColor });
     res.setHeader("Content-Type", "image/svg+xml");
     res.send(svg);
   } catch (err) {
