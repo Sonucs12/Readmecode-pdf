@@ -25,5 +25,11 @@
   "bugs": {
     "url": "https://github.com/Sonucs12/redmicodegen-backend/issues"
   },
-  "homepage": "https://github.com/Sonucs12/redmicodegen-backend#readme"
+  "homepage": "https://github.com/Sonucs12/redmicodegen-backend#readme",
+  "devDependencies": {
+    "@eslint/js": "^9.35.0",
+    "eslint": "^9.35.0",
+    "eslint-plugin-react": "^7.37.5",
+    "globals": "^16.4.0"
+  }
 }

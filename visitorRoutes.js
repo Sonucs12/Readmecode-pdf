@@ -42,29 +42,18 @@ router.post("/init", (req, res) => {
         .json({ error: "Missing userId, style, or timestamp" });
     }
 
-    // Optional colors with defaults;
-    const safeBg = bg ?? "#4c51bf";
-    const safeTextColor = textColor ?? "#ffffff";
-    const safeBgGradient = bgGradient ?? "#4c51bf";
+    // Only store what the frontend actually sent (no defaults)
     initStore[userId] = {
       userId,
       style,
       timestamp,
       receivedAt: new Date().toISOString(),
-      bg: safeBg,
-      textColor: safeTextColor,
-      bgGradient: safeBgGradient,
+      ...(bg !== undefined ? { bg } : {}),
+      ...(textColor !== undefined ? { textColor } : {}),
+      ...(bgGradient !== undefined ? { bgGradient } : {}),
     };
 
-    console.log("🆕 /init payload:", {
-      userId,
-      style,
-      timestamp,
-      bg: safeBg,
-      textColor: safeTextColor,
-      bgGradient: safeBgGradient,
-      receivedAt: initStore[userId].receivedAt,
-    });
+    console.log("🆕 /init payload:", initStore[userId]);
 
     return res.json({ success: true });
   } catch (err) {
@@ -253,8 +242,8 @@ router.get("/badge/:userId", async (req, res) => {
       if (!effectiveStyle) effectiveStyle = "style1";
     }
 
-    // Resolve gradient: query param > initStore > fallback to bg
-    const effectiveGradient = bgGradient || initStore[userId]?.bgGradient || bg;
+    // Resolve gradient: query param > initStore; do not fallback to bg
+    const effectiveGradient = bgGradient || initStore[userId]?.bgGradient;
 
     const svg = renderBadge({
       style: effectiveStyle,
