@@ -42,7 +42,7 @@ router.post("/init", (req, res) => {
         .json({ error: "Missing userId, style, or timestamp" });
     }
 
-    // Optional colors with defaults; you can keep nulls if you prefer
+    // Optional colors with defaults;
     const safeBg = bg ?? "#4c51bf";
     const safeTextColor = textColor ?? "#ffffff";
     const safeBgGradient = bgGradient ?? "#4c51bf";
