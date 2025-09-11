@@ -10,6 +10,37 @@ const { renderBadge, getAvailableStyles } = require("./svgTemplates");
 
 // Use a simple in-memory store for demonstration (replace with DB in production)
 const visitorCounts = {}; // { userId: count }
+// Temporary init store: holds frontend-provided init data until first validated increment
+const initStore = {}; // { userId: { userId, style, timestamp, receivedAt } }
+
+// Receive init payload from frontend and keep it temporarily in memory
+router.post("/init", (req, res) => {
+  try {
+    const { userId, style, timestamp } = req.body || {};
+    if (!userId || !style || !timestamp) {
+      return res
+        .status(400)
+        .json({ error: "Missing userId, style, or timestamp" });
+    }
+    initStore[userId] = {
+      userId,
+      style,
+      timestamp,
+      receivedAt: new Date().toISOString(),
+    };
+    console.log(
+      "✅ Init payload stored in memory for",
+      userId,
+      initStore[userId]
+    );
+    return res.json({ success: true });
+  } catch (err) {
+    console.error("❌ Init store error:", err);
+    return res
+      .status(500)
+      .json({ error: "Server error", details: err.message });
+  }
+});
 
 // Endpoint to increment the count
 router.post("/increment", async (req, res) => {
@@ -20,6 +51,16 @@ router.post("/increment", async (req, res) => {
     if (!userId) {
       console.log("❌ Missing userId in request");
       return res.status(400).json({ error: "Missing userId" });
+    }
+
+    // Validate that we have a matching init payload from memory for this user
+    const initPayload = initStore[userId];
+    if (!initPayload) {
+      console.warn(
+        "⚠️ No init payload found in memory for userId; rejecting increment:",
+        userId
+      );
+      return res.status(400).json({ error: "User not initialized via /init" });
     }
 
     // Try Firebase first, fallback to in-memory if it fails
@@ -40,10 +81,16 @@ router.post("/increment", async (req, res) => {
       firebaseWorking = false;
     }
 
-    // Increment in Firestore if available, otherwise use in-memory
+    // If Firebase is available, first persist the init payload, then increment count
     if (firebaseWorking) {
       console.log("📈 Attempting to increment visitor count in Firebase...");
       try {
+        // Persist init data to Firestore before count increment
+        const { upsertInitData } = require("./firebaseUtils");
+        await upsertInitData(userId, initPayload);
+        // Once persisted, we no longer need the in-memory copy
+        delete initStore[userId];
+
         await incrementVisitorCount(userId);
         console.log("✅ Firebase increment successful");
         firebaseCount += 1;
@@ -57,8 +104,14 @@ router.post("/increment", async (req, res) => {
     }
 
     // Keep the in-memory count for fast badge serving
-    if (!visitorCounts[userId]) visitorCounts[userId] = firebaseCount;
-    visitorCounts[userId] += 1;
+    // If Firebase worked, sync memory to the new Firebase count (no extra +1)
+    // If Firebase failed, increment memory as the source of truth
+    if (firebaseWorking) {
+      visitorCounts[userId] = firebaseCount;
+    } else {
+      // If Firebase failed here, keep init payload until a future successful persist
+      visitorCounts[userId] = (visitorCounts[userId] || 0) + 1;
+    }
 
     console.log(
       `✅ Increment successful. New count for ${userId}: ${

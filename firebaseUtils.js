@@ -90,6 +90,25 @@ async function getUserData(userId) {
   }
 }
 
+// Upsert init data coming from frontend init flow
+async function upsertInitData(userId, initData) {
+  try {
+    if (!db) initializeFirebase();
+    const userRef = doc(db, "users", userId);
+    const { style, timestamp, receivedAt } = initData || {};
+    const payload = {};
+    if (style) payload.badge = style;
+    if (timestamp) payload.initTimestamp = timestamp;
+    if (receivedAt) payload.initReceivedAt = receivedAt;
+    payload.lastInitSync = new Date().toISOString();
+    await setDoc(userRef, payload, { merge: true });
+    console.log(`✅ Upserted init data for ${userId}:`, payload);
+  } catch (error) {
+    console.error(`❌ Error upserting init data for ${userId}:`, error);
+    throw error;
+  }
+}
+
 // Realtime subscription using snapshots
 function subscribeToUserData(userId, onData, onError) {
   if (!db) initializeFirebase();
@@ -128,4 +147,5 @@ module.exports = {
   getUserData,
   subscribeToUserData,
   setUserBadge,
+  upsertInitData,
 };
