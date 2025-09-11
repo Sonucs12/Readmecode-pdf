@@ -91,7 +91,7 @@ async function getUserData(userId) {
 }
 
 // Upsert init data coming from frontend init flow
-async function upsertInitData(userId, initData) {
+async function upsertInitData(userId, initData, options = {}) {
   try {
     if (!db) initializeFirebase();
     const userRef = doc(db, "users", userId);
@@ -100,6 +100,10 @@ async function upsertInitData(userId, initData) {
     if (style) payload.badge = style;
     if (timestamp) payload.initTimestamp = timestamp;
     if (receivedAt) payload.initReceivedAt = receivedAt;
+    if (options.verified === true) {
+      payload.verified = true;
+      payload.dataVerified = true;
+    }
     payload.lastInitSync = new Date().toISOString();
     await setDoc(userRef, payload, { merge: true });
     console.log(`✅ Upserted init data for ${userId}:`, payload);

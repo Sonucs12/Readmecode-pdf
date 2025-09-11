@@ -53,25 +53,17 @@ router.post("/increment", async (req, res) => {
       return res.status(400).json({ error: "Missing userId" });
     }
 
-    // Validate that we have a matching init payload from memory for this user
-    const initPayload = initStore[userId];
-    if (!initPayload) {
-      console.warn(
-        "⚠️ No init payload found in memory for userId; rejecting increment:",
-        userId
-      );
-      return res.status(400).json({ error: "User not initialized via /init" });
-    }
-
     // Try Firebase first, fallback to in-memory if it fails
     console.log("🔍 Testing Firebase connection...");
     let firebaseWorking = false;
     let firebaseCount = 0;
+    let userExists = false;
 
     try {
       const userData = await getUserData(userId);
       console.log("✅ Firebase connection working, current data:", userData);
       firebaseWorking = true;
+      userExists = !!userData;
       firebaseCount = userData?.visitorCount || 0;
     } catch (firebaseError) {
       console.error(
@@ -81,19 +73,41 @@ router.post("/increment", async (req, res) => {
       firebaseWorking = false;
     }
 
-    // If Firebase is available, first persist the init payload, then increment count
+    // If Firebase is available
     if (firebaseWorking) {
       console.log("📈 Attempting to increment visitor count in Firebase...");
       try {
-        // Persist init data to Firestore before count increment
         const { upsertInitData } = require("./firebaseUtils");
-        await upsertInitData(userId, initPayload);
-        // Once persisted, we no longer need the in-memory copy
-        delete initStore[userId];
 
-        await incrementVisitorCount(userId);
-        console.log("✅ Firebase increment successful");
-        firebaseCount += 1;
+        // Case A: user exists in Firestore → skip memory validation, just increment
+        if (userExists) {
+          await incrementVisitorCount(userId);
+          console.log(
+            "✅ Firebase increment successful (existing verified user)"
+          );
+          firebaseCount += 1;
+          // Clear any stale init memory for this verified user
+          if (initStore[userId]) delete initStore[userId];
+        } else {
+          // Case B: user not in Firestore → require matching init payload in memory
+          const initPayload = initStore[userId];
+          if (!initPayload) {
+            console.warn(
+              "⚠️ No init payload found in memory for non-existent user; rejecting increment:",
+              userId
+            );
+            return res
+              .status(400)
+              .json({ error: "User not initialized via /init" });
+          }
+          // Persist init data with verified flag, then increment
+          await upsertInitData(userId, initPayload, { verified: true });
+          delete initStore[userId];
+
+          await incrementVisitorCount(userId);
+          console.log("✅ Firebase increment successful (new verified user)");
+          firebaseCount += 1;
+        }
       } catch (incrementError) {
         console.error(
           "❌ Firebase increment failed, falling back to in-memory:",
