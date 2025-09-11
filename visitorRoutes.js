@@ -34,23 +34,26 @@ setInterval(() => {
 // Receive init payload from frontend and keep it temporarily in memory
 router.post("/init", (req, res) => {
   try {
-    const { userId, style, timestamp } = req.body || {};
+    const { userId, style, timestamp, bg, textColor } = req.body || {};
     if (!userId || !style || !timestamp) {
       return res
         .status(400)
         .json({ error: "Missing userId, style, or timestamp" });
     }
+
+    // Optional colors with defaults; you can keep nulls if you prefer
+    const safeBg = bg ?? "#4c51bf";
+    const safeTextColor = textColor ?? "#ffffff";
+
     initStore[userId] = {
       userId,
       style,
       timestamp,
       receivedAt: new Date().toISOString(),
+      bg: safeBg,
+      textColor: safeTextColor,
     };
-    console.log(
-      "✅ Init payload stored in memory for",
-      userId,
-      initStore[userId]
-    );
+
     return res.json({ success: true });
   } catch (err) {
     console.error("❌ Init store error:", err);
