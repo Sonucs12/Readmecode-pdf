@@ -246,7 +246,7 @@ function shield1({ count, bg, textColor }) {
       : ""
   }
   
-  <!-- Left label with rounded left corners only -->
+  // Left label with rounded left corners only
   <path d="M0 0 
            h${leftWidth} 
            v${height} 
@@ -257,7 +257,7 @@ function shield1({ count, bg, textColor }) {
            z"
         fill="#2d2d2d" />
   
-  <!-- Right badge with rounded right corners only -->
+  // Right badge with rounded right corners only
   <path d="M${leftWidth} 0 
            h${rightWidth - 4} 
            a4 4 0 0 1 4 4 
@@ -287,28 +287,7 @@ function shield2({ count, bg, textColor }) {
   const safeText = sanitizeColor(textColor) || "#ffffff";
   const bgInfo = processBgColor(bg, templateDefaultBg);
 
-  // Path for left segment (rounded left corners only)
-  const leftPath = `
-    M0 0
-    H${leftWidth}
-    V${height}
-    H${radius}
-    A${radius} ${radius} 0 0 1 0 ${height - radius}
-    V${radius}
-    A${radius} ${radius} 0 0 1 ${radius} 0
-    Z
-  `;
-
-  // Path for right segment (rounded right corners only)
-  const rightPath = `
-    M${leftWidth} 0
-    H${leftWidth + rightWidth - radius}
-    A${radius} ${radius} 0 0 1 ${leftWidth + rightWidth} ${radius}
-    V${height - radius}
-    A${radius} ${radius} 0 0 1 ${leftWidth + rightWidth - radius} ${height}
-    H${leftWidth}
-    Z
-  `;
+  const { leftPath, rightPath } = makeBadgePaths(leftWidth, rightWidth, height, radius);
 
   return `
 <svg xmlns="http://www.w3.org/2000/svg" width="${
@@ -368,15 +347,15 @@ function shield4({ count, bg, textColor }) {
   const leftWidth = clampWidth(label, 60);
   const rightWidth = clampWidth(String(count), 60);
   const height = 26;
-  const radius = 3; // smaller radius than shield2/3
+  const radius = 3; 
 
-  const templateDefaultBg = "#f97316"; // orange default
+  const templateDefaultBg = "#f97316"; 
   const safeText = sanitizeColor(textColor) || "#ffffff";
   const bgInfo = processBgColor(bg, templateDefaultBg);
 
   const totalWidth = leftWidth + rightWidth;
 
-  // reuse same helper from shield2/shield3
+    // reuse same helper from shield2/shield3
   const { leftPath, rightPath } = makeBadgePaths(
     leftWidth,
     rightWidth,
