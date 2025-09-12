@@ -231,49 +231,40 @@ function shield1({ count, bg, textColor }) {
   const leftWidth = clampWidth(label, 80);
   const rightWidth = clampWidth(String(count), 60);
   const height = 28;
+  const radius = 4;
 
   const templateDefaultBg = "#3b82f6";
   const safeText = sanitizeColor(textColor) || "#ffffff";
   const bgInfo = processBgColor(bg, templateDefaultBg);
 
+  const totalWidth = leftWidth + rightWidth;
+  const { leftPath, rightPath } = makeBadgePaths(
+    leftWidth,
+    rightWidth,
+    height,
+    radius
+  );
+
   return `
-<svg xmlns="http://www.w3.org/2000/svg" width="${
-    leftWidth + rightWidth
-  }" height="${height}">
+<svg xmlns="http://www.w3.org/2000/svg" width="${totalWidth}" height="${height}" role="img" aria-label="${label}: ${count}">
   ${
     bgInfo.isGradient
       ? generateGradientDef("g_shield1", bgInfo.gradientDef)
       : ""
   }
-  
-  // Left label with rounded left corners only
-  <path d="M0 0 
-           h${leftWidth} 
-           v${height} 
-           h-${leftWidth - 4} 
-           a4 4 0 0 1 -4 -4 
-           v-${height - 8} 
-           a4 4 0 0 1 4 -4 
-           z"
-        fill="#2d2d2d" />
-  
-  // Right badge with rounded right corners only
-  <path d="M${leftWidth} 0 
-           h${rightWidth - 4} 
-           a4 4 0 0 1 4 4 
-           v${height - 8} 
-           a4 4 0 0 1 -4 4 
-           h-${rightWidth - 4} 
-           z"
-        fill="${bgInfo.isGradient ? "url(#g_shield1)" : bgInfo.solidColor}" />
-  
-  <text x="${
-    leftWidth / 2
-  }" y="18" text-anchor="middle" fill="#ffffff" font-size="13" font-family="Arial, sans-serif">${label}</text>
-  
-  <text x="${
-    leftWidth + rightWidth / 2
-  }" y="18" text-anchor="middle" fill="${safeText}" font-size="13" font-family="Arial, sans-serif">${count}</text>
+
+  <path d="${leftPath}" fill="#2d2d2d"/>
+  <path d="${rightPath}" fill="${
+    bgInfo.isGradient ? "url(#g_shield1)" : bgInfo.solidColor
+  }"/>
+
+  <text x="${leftWidth / 2}" y="${height / 2}" text-anchor="middle"
+        fill="#ffffff" font-size="13" font-family="Arial, sans-serif"
+        dominant-baseline="middle">${label}</text>
+
+  <text x="${leftWidth + rightWidth / 2}" y="${height / 2}" text-anchor="middle"
+        fill="${safeText}" font-size="13" font-family="Arial, sans-serif"
+        dominant-baseline="middle">${count}</text>
 </svg>`;
 }
 function shield2({ count, bg, textColor }) {
