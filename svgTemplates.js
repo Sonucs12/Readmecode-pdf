@@ -243,14 +243,68 @@ function shield1({ count, bg, textColor }) {
   
   <text x="${
     leftWidth / 2
-  }" y="18" text-anchor="middle" fill="${safeText}" font-size="13" font-family="Arial, sans-serif">${label}</text>
+  }" y="18" text-anchor="middle" fill="#ffffff" font-size="13" font-family="Arial, sans-serif">${label}</text>
   
   <text x="${
     leftWidth + rightWidth / 2
   }" y="18" text-anchor="middle" fill="${safeText}" font-size="13" font-family="Arial, sans-serif">${count}</text>
 </svg>`;
 }
+function shield2({ count, bg, textColor }) {
+  const label = "Page Views";
+  const leftWidth = clampWidth(label, 100);
+  const rightWidth = clampWidth(String(count), 60);
+  const height = 30;
+  const radius = 4;
 
+  const templateDefaultBg = "#10b981";
+  const safeText = sanitizeColor(textColor) || "#ffffff";
+  const bgInfo = processBgColor(bg, templateDefaultBg);
+
+  // Path for left segment (rounded left corners only)
+  const leftPath = `
+    M0 0
+    H${leftWidth}
+    V${height}
+    H${radius}
+    A${radius} ${radius} 0 0 1 0 ${height - radius}
+    V${radius}
+    A${radius} ${radius} 0 0 1 ${radius} 0
+    Z
+  `;
+
+  // Path for right segment (rounded right corners only)
+  const rightPath = `
+    M${leftWidth} 0
+    H${leftWidth + rightWidth - radius}
+    A${radius} ${radius} 0 0 1 ${leftWidth + rightWidth} ${radius}
+    V${height - radius}
+    A${radius} ${radius} 0 0 1 ${leftWidth + rightWidth - radius} ${height}
+    H${leftWidth}
+    Z
+  `;
+
+  return `
+<svg xmlns="http://www.w3.org/2000/svg" width="${
+    leftWidth + rightWidth
+  }" height="${height}">
+  ${
+    bgInfo.isGradient
+      ? generateGradientDef("g_shield2", bgInfo.gradientDef)
+      : ""
+  }
+  <path d="${leftPath}" fill="#1f2937" />
+  <path d="${rightPath}" fill="${
+    bgInfo.isGradient ? "url(#g_shield2)" : bgInfo.solidColor
+  }" />
+  <text x="${leftWidth / 2}" y="${Math.round(height / 2 + 5)}"
+        text-anchor="middle" fill="${safeText}" font-size="13"
+        font-family="Segoe UI, sans-serif">${label}</text>
+  <text x="${leftWidth + rightWidth / 2}" y="${Math.round(height / 2 + 5)}"
+        text-anchor="middle" fill="${safeText}" font-size="13"
+        font-family="Segoe UI, sans-serif">${count}</text>
+</svg>`;
+}
 
 const templates = {
   style1,
@@ -259,6 +313,7 @@ const templates = {
   style4,
   style5,
   shield1,
+  shield2,
 };
 
 function getAvailableStyles() {
