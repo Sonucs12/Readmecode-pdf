@@ -215,22 +215,40 @@ function style6({ count, bg, textColor }) {
     leftWidth + rightWidth
   }" height="${height}">
   ${
-    bgInfo.isGradient
-      ? generateGradientDef("g_style6", bgInfo.gradientDef)
-      : ""
+    bgInfo.isGradient ? generateGradientDef("g_style6", bgInfo.gradientDef) : ""
   }
-  <rect width="${leftWidth}" height="${height}" fill="#2d2d2d" rx="4" />
-  <rect x="${leftWidth}" width="${rightWidth}" height="${height}" fill="${
-    bgInfo.isGradient ? "url(#g_style6)" : bgInfo.solidColor
-  }" rx="4" />
+  
+  <!-- Left label with rounded left corners only -->
+  <path d="M0 0 
+           h${leftWidth} 
+           v${height} 
+           h-${leftWidth - 4} 
+           a4 4 0 0 1 -4 -4 
+           v-${height - 8} 
+           a4 4 0 0 1 4 -4 
+           z"
+        fill="#2d2d2d" />
+  
+  <!-- Right badge with rounded right corners only -->
+  <path d="M${leftWidth} 0 
+           h${rightWidth - 4} 
+           a4 4 0 0 1 4 4 
+           v${height - 8} 
+           a4 4 0 0 1 -4 4 
+           h-${rightWidth - 4} 
+           z"
+        fill="${bgInfo.isGradient ? "url(#g_style6)" : bgInfo.solidColor}" />
+  
   <text x="${
     leftWidth / 2
   }" y="18" text-anchor="middle" fill="${safeText}" font-size="13" font-family="Arial, sans-serif">${label}</text>
+  
   <text x="${
     leftWidth + rightWidth / 2
   }" y="18" text-anchor="middle" fill="${safeText}" font-size="13" font-family="Arial, sans-serif">${count}</text>
 </svg>`;
 }
+
 
 const templates = {
   style1,
