@@ -1,6 +1,6 @@
 // svgTemplates.js
 
-// Predefined gradient definitions
+// Predefined gradient
 const GRADIENT_DEFINITIONS = {
   "gradient-blue": { start: "#3b82f6", end: "#1d4ed8" },
   "gradient-green": { start: "#10b981", end: "#059669" },
