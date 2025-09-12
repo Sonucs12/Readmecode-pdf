@@ -305,35 +305,62 @@ function shield2({ count, bg, textColor }) {
         font-family="Segoe UI, sans-serif">${count}</text>
 </svg>`;
 }
+
+// Reusable helper to generate the left/right pill paths
+function makeBadgePaths(leftWidth, rightWidth, height, radius) {
+  // Left part (dark background)
+  const leftPath = `
+    M${radius} 0
+    h${leftWidth - radius}
+    v${height}
+    h-${leftWidth - radius}
+    a${radius},${radius} 0 0 1 -${radius}-${radius}
+    v-${height - radius}
+    a${radius},${radius} 0 0 1 ${radius}-${radius}
+    z
+  `;
+
+  // Right part (colored background)
+  const rightPath = `
+    M${leftWidth} 0
+    h${rightWidth - radius}
+    a${radius},${radius} 0 0 1 ${radius},${radius}
+    v${height - 2 * radius}
+    a${radius},${radius} 0 0 1 -${radius},${radius}
+    h-${rightWidth - radius}
+    z
+  `;
+
+  return { leftPath, rightPath };
+}
+
 function shield3({ count, bg, textColor }) {
   const label = "Users";
   const leftWidth = clampWidth(label, 70);
   const rightWidth = clampWidth(String(count), 60);
   const height = 28;
+  const radius = 4;
 
   const templateDefaultBg = "#8b5cf6";
   const safeText = sanitizeColor(textColor) || "#ffffff";
   const bgInfo = processBgColor(bg, templateDefaultBg);
 
+  const totalWidth = leftWidth + rightWidth;
+  const { leftPath, rightPath } = makeBadgePaths(leftWidth, rightWidth, height, radius);
+
   return `
-<svg xmlns="http://www.w3.org/2000/svg" width="${
-    leftWidth + rightWidth
-  }" height="${height}">
-  ${
-    bgInfo.isGradient
-      ? generateGradientDef("g_shield3", bgInfo.gradientDef)
-      : ""
-  }
-  <rect width="${leftWidth}" height="${height}" fill="#2c2c2c" rx="4" />
-  <rect x="${leftWidth}" width="${rightWidth}" height="${height}" fill="${
-    bgInfo.isGradient ? "url(#g_shield3)" : bgInfo.solidColor
-  }" rx="4" />
-  <text x="${
-    leftWidth / 2
-  }" y="18" text-anchor="middle" fill="${safeText}" font-size="12" font-family="Verdana, sans-serif">${label}</text>
-  <text x="${
-    leftWidth + rightWidth / 2
-  }" y="18" text-anchor="middle" fill="${safeText}" font-size="12" font-family="Verdana, sans-serif">${count}</text>
+<svg xmlns="http://www.w3.org/2000/svg" width="${totalWidth}" height="${height}" role="img" aria-label="${label}: ${count}">
+  ${bgInfo.isGradient ? generateGradientDef("g_shield3", bgInfo.gradientDef) : ""}
+
+  <path d="${leftPath}" fill="#2c2c2c"/>
+  <path d="${rightPath}" fill="${bgInfo.isGradient ? "url(#g_shield3)" : bgInfo.solidColor}"/>
+
+  <text x="${leftWidth / 2}" y="${height / 2}" text-anchor="middle"
+        fill="${safeText}" font-size="12" font-family="Verdana, sans-serif"
+        dominant-baseline="middle">${label}</text>
+  <text x="${leftWidth + rightWidth / 2}" y="${height / 2}" text-anchor="middle"
+        fill="${safeText}" font-size="12" font-family="Verdana, sans-serif"
+        dominant-baseline="middle">${count}</text>
 </svg>`;
 }
 
