@@ -305,6 +305,37 @@ function shield2({ count, bg, textColor }) {
         font-family="Segoe UI, sans-serif">${count}</text>
 </svg>`;
 }
+function shield3({ count, bg, textColor }) {
+  const label = "Users";
+  const leftWidth = clampWidth(label, 70);
+  const rightWidth = clampWidth(String(count), 60);
+  const height = 28;
+
+  const templateDefaultBg = "#8b5cf6";
+  const safeText = sanitizeColor(textColor) || "#ffffff";
+  const bgInfo = processBgColor(bg, templateDefaultBg);
+
+  return `
+<svg xmlns="http://www.w3.org/2000/svg" width="${
+    leftWidth + rightWidth
+  }" height="${height}">
+  ${
+    bgInfo.isGradient
+      ? generateGradientDef("g_shield3", bgInfo.gradientDef)
+      : ""
+  }
+  <rect width="${leftWidth}" height="${height}" fill="#2c2c2c" rx="4" />
+  <rect x="${leftWidth}" width="${rightWidth}" height="${height}" fill="${
+    bgInfo.isGradient ? "url(#g_shield3)" : bgInfo.solidColor
+  }" rx="4" />
+  <text x="${
+    leftWidth / 2
+  }" y="18" text-anchor="middle" fill="${safeText}" font-size="12" font-family="Verdana, sans-serif">${label}</text>
+  <text x="${
+    leftWidth + rightWidth / 2
+  }" y="18" text-anchor="middle" fill="${safeText}" font-size="12" font-family="Verdana, sans-serif">${count}</text>
+</svg>`;
+}
 
 const templates = {
   style1,
@@ -314,6 +345,7 @@ const templates = {
   style5,
   shield1,
   shield2,
+  shield3,
 };
 
 function getAvailableStyles() {
