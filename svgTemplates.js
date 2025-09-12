@@ -63,7 +63,7 @@ function style1({ count, bg, textColor }) {
   const safeText = sanitizeColor(textColor) || "#ffffff";
   const bgInfo = processBgColor(bg, templateDefaultBg);
 
-  const label = `Viewshgfgfhgfhgfhgfhgghfghfghf: ${count}`;
+  const label = `Total Visitors: ${count}`;
   const width = clampWidth(label, 150);
 
   return `
