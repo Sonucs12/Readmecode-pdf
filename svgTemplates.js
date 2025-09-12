@@ -305,7 +305,7 @@ function shield2({ count, bg, textColor }) {
 
 
 function shield3({ count, bg, textColor }) {
-  const label = "Users";
+  const label = "Website Visitors";
   const leftWidth = clampWidth(label, 70);
   const rightWidth = clampWidth(String(count), 60);
   const height = 28;
@@ -334,7 +334,7 @@ function shield3({ count, bg, textColor }) {
 </svg>`;
 }
 function shield4({ count, bg, textColor }) {
-  const label = "Hits";
+  const label = "Total Page Views";
   const leftWidth = clampWidth(label, 60);
   const rightWidth = clampWidth(String(count), 60);
   const height = 26;
@@ -377,7 +377,7 @@ function shield4({ count, bg, textColor }) {
 }
 // ✅ Shield5 using reusable paths
 function shield5({ count, bg, textColor }) {
-  const label = "Likes";
+  const label = "Portfolio Views";
   const leftWidth = clampWidth(label, 70);
   const rightWidth = clampWidth(String(count), 60);
   const height = 28;
