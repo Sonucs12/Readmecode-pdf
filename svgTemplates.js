@@ -1,5 +1,31 @@
 // svgTemplates.js
+// Reusable helper to generate the left/right pill paths
+function makeBadgePaths(leftWidth, rightWidth, height, radius) {
+  // Left part (dark background)
+  const leftPath = `
+    M${radius} 0
+    h${leftWidth - radius}
+    v${height}
+    h-${leftWidth - radius}
+    a${radius},${radius} 0 0 1 -${radius}-${radius}
+    v-${height - radius}
+    a${radius},${radius} 0 0 1 ${radius}-${radius}
+    z
+  `;
 
+  // Right part (colored background)
+  const rightPath = `
+    M${leftWidth} 0
+    h${rightWidth - radius}
+    a${radius},${radius} 0 0 1 ${radius},${radius}
+    v${height - 2 * radius}
+    a${radius},${radius} 0 0 1 -${radius},${radius}
+    h-${rightWidth - radius}
+    z
+  `;
+
+  return { leftPath, rightPath };
+}
 // Predefined gradient
 const GRADIENT_DEFINITIONS = {
   "gradient-blue": { start: "#3b82f6", end: "#1d4ed8" },
@@ -306,33 +332,7 @@ function shield2({ count, bg, textColor }) {
 </svg>`;
 }
 
-// Reusable helper to generate the left/right pill paths
-function makeBadgePaths(leftWidth, rightWidth, height, radius) {
-  // Left part (dark background)
-  const leftPath = `
-    M${radius} 0
-    h${leftWidth - radius}
-    v${height}
-    h-${leftWidth - radius}
-    a${radius},${radius} 0 0 1 -${radius}-${radius}
-    v-${height - radius}
-    a${radius},${radius} 0 0 1 ${radius}-${radius}
-    z
-  `;
 
-  // Right part (colored background)
-  const rightPath = `
-    M${leftWidth} 0
-    h${rightWidth - radius}
-    a${radius},${radius} 0 0 1 ${radius},${radius}
-    v${height - 2 * radius}
-    a${radius},${radius} 0 0 1 -${radius},${radius}
-    h-${rightWidth - radius}
-    z
-  `;
-
-  return { leftPath, rightPath };
-}
 
 function shield3({ count, bg, textColor }) {
   const label = "Users";
@@ -363,6 +363,48 @@ function shield3({ count, bg, textColor }) {
         dominant-baseline="middle">${count}</text>
 </svg>`;
 }
+function shield4({ count, bg, textColor }) {
+  const label = "Hits";
+  const leftWidth = clampWidth(label, 60);
+  const rightWidth = clampWidth(String(count), 60);
+  const height = 26;
+  const radius = 3; // smaller radius than shield2/3
+
+  const templateDefaultBg = "#f97316"; // orange default
+  const safeText = sanitizeColor(textColor) || "#ffffff";
+  const bgInfo = processBgColor(bg, templateDefaultBg);
+
+  const totalWidth = leftWidth + rightWidth;
+
+  // reuse same helper from shield2/shield3
+  const { leftPath, rightPath } = makeBadgePaths(
+    leftWidth,
+    rightWidth,
+    height,
+    radius
+  );
+
+  return `
+<svg xmlns="http://www.w3.org/2000/svg" width="${totalWidth}" height="${height}" role="img" aria-label="${label}: ${count}">
+  ${
+    bgInfo.isGradient
+      ? generateGradientDef("g_shield4", bgInfo.gradientDef)
+      : ""
+  }
+
+  <path d="${leftPath}" fill="#1c1c1c"/>
+  <path d="${rightPath}" fill="${
+    bgInfo.isGradient ? "url(#g_shield4)" : bgInfo.solidColor
+  }"/>
+
+  <text x="${leftWidth / 2}" y="${height / 2}" text-anchor="middle"
+        fill="${safeText}" font-size="12" font-family="Tahoma, sans-serif"
+        dominant-baseline="middle">${label}</text>
+  <text x="${leftWidth + rightWidth / 2}" y="${height / 2}" text-anchor="middle"
+        fill="${safeText}" font-size="12" font-family="Tahoma, sans-serif"
+        dominant-baseline="middle">${count}</text>
+</svg>`;
+}
 
 const templates = {
   style1,
@@ -373,6 +415,7 @@ const templates = {
   shield1,
   shield2,
   shield3,
+  shield4,
 };
 
 function getAvailableStyles() {
