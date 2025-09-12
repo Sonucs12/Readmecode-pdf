@@ -406,6 +406,42 @@ function shield5({ count, bg, textColor }) {
         dominant-baseline="middle">${count}</text>
 </svg>`;
 }
+function htmlBadge({
+  label = "Visitors",
+  count = "0",
+  bg = "#3b82f6",
+  textColor = "#fff",
+}) {
+  return `
+  <div style="
+    display:inline-flex;
+    font-family: Arial, sans-serif;
+    font-size:13px;
+    line-height:1;
+    color:${textColor};
+    height:28px;
+  ">
+    <div style="
+      background:#2d2d2d;
+      padding:6px 10px;
+      border-top-left-radius:4px;
+      border-bottom-left-radius:4px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+    ">${label}</div>
+    <div style="
+      background:${bg};
+      padding:6px 10px;
+      border-top-right-radius:4px;
+      border-bottom-right-radius:4px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+    ">${count}</div>
+  </div>
+  `;
+}
 
 const templates = {
   style1,
@@ -418,6 +454,7 @@ const templates = {
   shield3,
   shield4,
   shield5,
+  htmlBadge,
 };
 
 function getAvailableStyles() {
