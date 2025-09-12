@@ -63,7 +63,7 @@ function style1({ count, bg, textColor }) {
   const safeText = sanitizeColor(textColor) || "#ffffff";
   const bgInfo = processBgColor(bg, templateDefaultBg);
 
-  const label = `Views: ${count}`;
+  const label = `Viewshgfgfhgfhgfhgfhgghfghfghf: ${count}`;
   const width = clampWidth(label, 150);
 
   return `
@@ -89,11 +89,11 @@ function style2({ count, bg, textColor }) {
   const width = clampWidth(label, 120);
 
   return `
-<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="28">
+<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="30">
   ${
     bgInfo.isGradient ? generateGradientDef("g_style2", bgInfo.gradientDef) : ""
   }
-  <rect width="${width}" height="28" fill="${
+  <rect width="${width}" height="30" fill="${
     bgInfo.isGradient ? "url(#g_style2)" : bgInfo.solidColor
   }" rx="14" />
   <text x="14" y="18" fill="${safeText}" font-size="13" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif">${label}</text>
@@ -110,11 +110,11 @@ function style3({ count, bg, textColor }) {
 
   return `
 <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="32">
-  <rect width="${width}" height="32" fill="#0b0f14" rx="6" />
+  <rect width="${width}" height="34" fill="#0b0f14" rx="6" />
   ${
     bgInfo.isGradient ? generateGradientDef("g_style3", bgInfo.gradientDef) : ""
   }
-  <rect x="2" y="2" width="${width - 4}" height="28" fill="${
+  <rect x="2" y="2" width="${width - 4}" height="30" fill="${
     bgInfo.isGradient ? "url(#g_style3)" : bgInfo.solidColor
   }" rx="5" />
   <text x="16" y="20" fill="${safeText}" font-size="14" font-weight="600" font-family="Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif">${label}</text>
