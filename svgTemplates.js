@@ -200,7 +200,7 @@ function style5({ count, bg, textColor }) {
   }" y="20" text-anchor="middle" fill="${safeText}" font-size="13" font-family="Arial, Helvetica, sans-serif">${label}</text>
 </svg>`;
 }
-function style6({ count, bg, textColor }) {
+function shield1({ count, bg, textColor }) {
   const label = "Visitors";
   const leftWidth = clampWidth(label, 80);
   const rightWidth = clampWidth(String(count), 60);
@@ -215,7 +215,9 @@ function style6({ count, bg, textColor }) {
     leftWidth + rightWidth
   }" height="${height}">
   ${
-    bgInfo.isGradient ? generateGradientDef("g_style6", bgInfo.gradientDef) : ""
+    bgInfo.isGradient
+      ? generateGradientDef("g_shield1", bgInfo.gradientDef)
+      : ""
   }
   
   <!-- Left label with rounded left corners only -->
@@ -237,7 +239,7 @@ function style6({ count, bg, textColor }) {
            a4 4 0 0 1 -4 4 
            h-${rightWidth - 4} 
            z"
-        fill="${bgInfo.isGradient ? "url(#g_style6)" : bgInfo.solidColor}" />
+        fill="${bgInfo.isGradient ? "url(#g_shield1)" : bgInfo.solidColor}" />
   
   <text x="${
     leftWidth / 2
@@ -256,7 +258,7 @@ const templates = {
   style3,
   style4,
   style5,
-  style6,
+  shield1,
 };
 
 function getAvailableStyles() {
