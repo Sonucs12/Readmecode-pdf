@@ -200,6 +200,37 @@ function style5({ count, bg, textColor }) {
   }" y="20" text-anchor="middle" fill="${safeText}" font-size="13" font-family="Arial, Helvetica, sans-serif">${label}</text>
 </svg>`;
 }
+function style6({ count, bg, textColor }) {
+  const label = "Visitors";
+  const leftWidth = clampWidth(label, 80);
+  const rightWidth = clampWidth(String(count), 60);
+  const height = 28;
+
+  const templateDefaultBg = "#3b82f6";
+  const safeText = sanitizeColor(textColor) || "#ffffff";
+  const bgInfo = processBgColor(bg, templateDefaultBg);
+
+  return `
+<svg xmlns="http://www.w3.org/2000/svg" width="${
+    leftWidth + rightWidth
+  }" height="${height}">
+  ${
+    bgInfo.isGradient
+      ? generateGradientDef("g_style6", bgInfo.gradientDef)
+      : ""
+  }
+  <rect width="${leftWidth}" height="${height}" fill="#2d2d2d" rx="4" />
+  <rect x="${leftWidth}" width="${rightWidth}" height="${height}" fill="${
+    bgInfo.isGradient ? "url(#g_style6)" : bgInfo.solidColor
+  }" rx="4" />
+  <text x="${
+    leftWidth / 2
+  }" y="18" text-anchor="middle" fill="${safeText}" font-size="13" font-family="Arial, sans-serif">${label}</text>
+  <text x="${
+    leftWidth + rightWidth / 2
+  }" y="18" text-anchor="middle" fill="${safeText}" font-size="13" font-family="Arial, sans-serif">${count}</text>
+</svg>`;
+}
 
 const templates = {
   style1,
@@ -207,6 +238,7 @@ const templates = {
   style3,
   style4,
   style5,
+  style6,
 };
 
 function getAvailableStyles() {
