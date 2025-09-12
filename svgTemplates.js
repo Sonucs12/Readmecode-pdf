@@ -87,7 +87,7 @@ function style2({ count, bg, textColor }) {
   const safeText = sanitizeColor(textColor) || "#0b1220";
   const bgInfo = processBgColor(bg, templateDefaultBg);
 
-  const label = `👁️ ${count}`;
+  const label = `Portfolio Views 👁️ ${count}`;
   const width = clampWidth(label, 120);
 
   return `
@@ -109,7 +109,7 @@ function style3({ count, bg, textColor }) {
   const safeText = sanitizeColor(textColor) || "#00312a";
   const bgInfo = processBgColor(bg, templateDefaultBg);
 
-  const label = `${count} visits`;
+  const label = `${count} users visited`;
   const width = clampWidth(label, 140);
 
   return `
@@ -165,7 +165,7 @@ function style5({ count, bg, textColor }) {
   const safeText = sanitizeColor(textColor) || "#ffffff";
   const bgInfo = processBgColor(bg, templateDefaultBg);
 
-  const label = `Readme views ${count}`;
+  const label = `Website visitors ${count}`;
   const width = clampWidth(label, 170);
 
   return `
