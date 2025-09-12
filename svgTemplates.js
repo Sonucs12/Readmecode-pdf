@@ -375,6 +375,37 @@ function shield4({ count, bg, textColor }) {
         dominant-baseline="middle">${count}</text>
 </svg>`;
 }
+// ✅ Shield5 using reusable paths
+function shield5({ count, bg, textColor }) {
+  const label = "Likes";
+  const leftWidth = clampWidth(label, 70);
+  const rightWidth = clampWidth(String(count), 60);
+  const height = 28;
+  const radius = 4;
+
+  const templateDefaultBg = "#ec4899"; 
+  const safeText = sanitizeColor(textColor) || "#ffffff";
+  const bgInfo = processBgColor(bg, templateDefaultBg);
+
+  const totalWidth = leftWidth + rightWidth;
+  const { leftPath, rightPath } = makeBadgePaths(leftWidth, rightWidth, height, radius);
+
+  return `
+<svg xmlns="http://www.w3.org/2000/svg" width="${totalWidth}" height="${height}" role="img" aria-label="${label}: ${count}">
+  ${bgInfo.isGradient ? generateGradientDef("g_shield5", bgInfo.gradientDef) : ""}
+
+  <path d="${leftPath}" fill="#2a2a2a"/>
+  <path d="${rightPath}" fill="${bgInfo.isGradient ? "url(#g_shield5)" : bgInfo.solidColor}"/>
+
+  <text x="${leftWidth / 2}" y="${height / 2}" text-anchor="middle"
+        fill="${safeText}" font-size="13" font-family="Arial, sans-serif"
+        dominant-baseline="middle">${label}</text>
+
+  <text x="${leftWidth + rightWidth / 2}" y="${height / 2}" text-anchor="middle"
+        fill="${safeText}" font-size="13" font-family="Arial, sans-serif"
+        dominant-baseline="middle">${count}</text>
+</svg>`;
+}
 
 const templates = {
   style1,
@@ -386,6 +417,7 @@ const templates = {
   shield2,
   shield3,
   shield4,
+  shield5,
 };
 
 function getAvailableStyles() {
