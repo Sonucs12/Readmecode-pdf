@@ -74,7 +74,9 @@ function style1({ count, bg, textColor }) {
   <rect width="${width}" height="30" fill="${
     bgInfo.isGradient ? "url(#g_style1)" : bgInfo.solidColor
   }" rx="4" />
-  <text x="12" y="20" fill="${safeText}" font-size="14" font-family="Arial, Helvetica, sans-serif">${label}</text>
+  <text x="${
+    width / 2
+  }" y="20" text-anchor="middle" fill="${safeText}" font-size="14" font-family="Arial, Helvetica, sans-serif">${label}</text>
   <title>${label}</title>
   <desc>Badge showing the total views</desc>
 </svg>`;
@@ -96,7 +98,9 @@ function style2({ count, bg, textColor }) {
   <rect width="${width}" height="30" fill="${
     bgInfo.isGradient ? "url(#g_style2)" : bgInfo.solidColor
   }" rx="14" />
-  <text x="14" y="18" fill="${safeText}" font-size="13" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif">${label}</text>
+  <text x="${
+    width / 2
+  }" y="18" text-anchor="middle" fill="${safeText}" font-size="13" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif">${label}</text>
 </svg>`;
 }
 
@@ -117,7 +121,9 @@ function style3({ count, bg, textColor }) {
   <rect x="2" y="2" width="${width - 4}" height="30" fill="${
     bgInfo.isGradient ? "url(#g_style3)" : bgInfo.solidColor
   }" rx="5" />
-  <text x="16" y="20" fill="${safeText}" font-size="14" font-weight="600" font-family="Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif">${label}</text>
+  <text x="${
+    width / 2
+  }" y="20" text-anchor="middle" fill="${safeText}" font-size="14" font-weight="600" font-family="Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif">${label}</text>
 </svg>`;
 }
 
@@ -148,7 +154,9 @@ function style4({ count, bg, textColor }) {
   <rect width="${width}" height="34" fill="${
     bgInfo.isGradient ? "url(#g_style4)" : bgInfo.solidColor
   }" rx="8" filter="url(#shadow)" />
-  <text x="16" y="22" fill="${safeText}" font-size="14" font-family="Verdana, Geneva, Tahoma, sans-serif">${label}</text>
+  <text x="${
+    width / 2
+  }" y="22" text-anchor="middle" fill="${safeText}" font-size="14" font-family="Verdana, Geneva, Tahoma, sans-serif">${label}</text>
 </svg>`;
 }
 
@@ -187,7 +195,9 @@ function style5({ count, bg, textColor }) {
       width - 2
     }" height="28" fill="url(#gloss)" rx="3"/>
   </g>
-  <text x="12" y="20" fill="${safeText}" font-size="13" font-family="Arial, Helvetica, sans-serif">${label}</text>
+  <text x="${
+    width / 2
+  }" y="20" text-anchor="middle" fill="${safeText}" font-size="13" font-family="Arial, Helvetica, sans-serif">${label}</text>
 </svg>`;
 }
 
