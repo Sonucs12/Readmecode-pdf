@@ -1,4 +1,3 @@
-// svgTemplates.js - Optimized with vertical text centering, dynamic width, and reusability
 
 // Common text attributes for vertical centering
 const TEXT_CENTER_ATTRS = `text-anchor="middle" dominant-baseline="central"`;
@@ -122,14 +121,15 @@ function createShieldTexts(
   rightText,
   textColor,
   fontSize,
-  fontFamily
+  fontFamily,
+  leftTextColor = "#ffffff"
 ) {
   const leftX = leftWidth / 2;
   const rightX = leftWidth + rightWidth / 2;
   const y = height / 2;
 
   return `
-  ${createText(leftX, y, "#ffffff", fontSize, fontFamily, leftText)}
+  ${createText(leftX, y, leftTextColor, fontSize, fontFamily, leftText)}
   ${createText(rightX, y, textColor, fontSize, fontFamily, rightText)}`;
 }
 
@@ -148,6 +148,7 @@ function createShield(config) {
     fillColor,
     gradientId,
     useClampWidth,
+    leftTextColor,
   } = config;
 
   // Use dynamic width calculation for all shields
@@ -185,7 +186,8 @@ function createShield(config) {
     count,
     safeText,
     fontSize,
-    fontFamily
+    fontFamily,
+    leftTextColor || "#ffffff"
   )}
 </svg>`;
 }
@@ -354,6 +356,7 @@ function style5({ count, bg, textColor }) {
 </svg>`;
 }
 
+
 // Shield badges using the reusable createShield function
 function shield1({ count, bg, textColor }) {
   const label = "Visitors";
@@ -466,6 +469,26 @@ function shield5({ count, bg, textColor }) {
     rightMinWidth: 35,
   });
 }
+function shield6({ count, bg, textColor }) {
+  return createShield({
+    label: "Total visitors",
+    count,
+    bg,
+    textColor,
+    templateDefaultBg: "#10b981",
+    height: 30,
+    radius: 4,
+    fontSize: "13",
+    fontFamily: "Segoe UI, sans-serif",
+    fillColor: "#ffffff", // White background for left part
+    gradientId: "g_shield6",
+    useClampWidth: false,
+    leftMinWidth: 70,
+    rightMinWidth: 40,
+    leftTextColor: "#000000", // Black text for left part
+  });
+ 
+}
 
 // Template registry
 const templates = {
@@ -479,6 +502,7 @@ const templates = {
   shield3,
   shield4,
   shield5,
+  shield6,
 };
 
 // Export functions
