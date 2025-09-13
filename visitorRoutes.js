@@ -11,12 +11,6 @@ const {
   getAvailableStyles,
   getAvailableGradients,
 } = require("./svgTemplates");
-const fetch = require('node-fetch');
-const cheerio = require('cheerio');
-
-// Cache for backlink verification results to avoid repeated fetches
-const backlinkCache = new Map();
-const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes
 
 // In-memory stores
 const visitorCounts = {}; // { userId: count }
@@ -77,76 +71,7 @@ router.post("/init", (req, res) => {
     });
   }
 });
-async function verifyBacklink(url) {
-  try {
-    // Check cache first
-    const cacheKey = url;
-    const cached = backlinkCache.get(cacheKey);
-    if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
-      console.log(
-        `🔍 Using cached backlink result for ${url}: ${cached.result}`
-      );
-      return cached.result;
-    }
 
-    console.log(`🔍 Verifying backlink on ${url}...`);
-
-    // Fetch the page content
-    const response = await fetch(url, {
-      timeout: 5000,
-      headers: {
-        "User-Agent": "ReadMeCodeGen-Bot/1.0",
-      },
-    });
-
-    if (!response.ok) {
-      console.log(`❌ Failed to fetch page: ${response.status}`);
-      return false;
-    }
-
-    const html = await response.text();
-    const $ = cheerio.load(html);
-
-    // Look for links to your service
-    const requiredDomains = [
-      "https://www.readmecodegen.com",
-      "https://readmecodegen.com",
-      "http://www.readmecodegen.com",
-      "http://readmecodegen.com",
-    ];
-
-    let validBacklinkFound = false;
-
-    $("a").each((i, element) => {
-      const href = $(element).attr("href");
-      const text = $(element).text().trim();
-      const rel = $(element).attr("rel");
-
-      if (href && requiredDomains.some((domain) => href.startsWith(domain))) {
-        // Check if link is valid (not nofollow, has text, etc.)
-        if (rel !== "nofollow" && text.length > 0) {
-          console.log(`✅ Valid backlink found: "${text}" -> ${href}`);
-          validBacklinkFound = true;
-          return false; // Break the loop
-        }
-      }
-    });
-
-    // Cache the result
-    backlinkCache.set(cacheKey, {
-      result: validBacklinkFound,
-      timestamp: Date.now(),
-    });
-
-    console.log(
-      `🔍 Backlink verification result for ${url}: ${validBacklinkFound}`
-    );
-    return validBacklinkFound;
-  } catch (error) {
-    console.error("❌ Backlink verification error:", error);
-    return false; // Fail closed - deny if we can't verify
-  }
-}
 // Increment visitor count
 router.post("/increment", async (req, res) => {
   try {
@@ -158,43 +83,7 @@ router.post("/increment", async (req, res) => {
       return res.status(400).json({ error: "Missing userId" });
     }
 
-    // Get the referrer URL (where the request came from)
-    const referrerUrl = req.get('Referer') || req.get('Referrer');
-    
-    if (!referrerUrl) {
-      console.log("❌ No referrer URL found");
-      return res.status(403).json({ error: 'Invalid request source' });
-    }
-
-    console.log(`🔍 Request from: ${referrerUrl}`);
-
-    // Check if domain is whitelisted (for testing/trusted domains)
-    const allowedDomains = ['localhost', '127.0.0.1', 'readmecodegen.com']; // Add your testing domains
-    const referrerDomain = new URL(referrerUrl).hostname;
-    
-    let skipBacklinkCheck = false;
-    if (allowedDomains.some(domain => referrerDomain.includes(domain))) {
-      console.log(`✅ Whitelisted domain detected: ${referrerDomain}`);
-      skipBacklinkCheck = true;
-    }
-
-    // For non-whitelisted domains, verify backlink exists
-    if (!skipBacklinkCheck) {
-      console.log(`🔍 Checking backlink for non-whitelisted domain: ${referrerDomain}`);
-      const hasValidBacklink = await verifyBacklink(referrerUrl);
-      
-      if (!hasValidBacklink) {
-        console.log(`❌ No valid backlink found on ${referrerUrl}`);
-        return res.status(403).json({ 
-          error: 'Valid backlink to ReadMeCodeGen.com required to use this service',
-          referrer: referrerUrl 
-        });
-      }
-      
-      console.log(`✅ Valid backlink confirmed on ${referrerUrl}`);
-    }
-
-    // Firebase integration logic (PRESERVED EXACTLY)
+    // Firebase integration logic
     console.log("🔍 Checking Firestore...");
     let firebaseWorking = false;
     let firebaseCount = 0;
@@ -253,7 +142,7 @@ router.post("/increment", async (req, res) => {
       }
     }
 
-    // Update in-memory count (PRESERVED EXACTLY)
+    // Update in-memory count
     if (firebaseWorking) {
       visitorCounts[userId] = firebaseCount;
     } else {
@@ -279,16 +168,6 @@ router.post("/increment", async (req, res) => {
     });
   }
 });
-
-// Optional: Clean up old cache entries periodically
-setInterval(() => {
-  const now = Date.now();
-  for (const [key, value] of backlinkCache.entries()) {
-    if (now - value.timestamp > CACHE_DURATION) {
-      backlinkCache.delete(key);
-    }
-  }
-}, 10 * 60 * 1000); // Clean up every 10 minutes
 
 // Debug endpoint
 router.get("/debug/:userId", async (req, res) => {
