@@ -163,13 +163,13 @@ async function generatePDF(html) {
     page = await browser.newPage();
 
     await page.setViewport({ width: 1920, height: 1080 });
-    await page.setJavaScriptEnabled(false);
+    await page.setJavaScriptEnabled(true);
 
     await page.setContent(html, {
       waitUntil: "networkidle0",
       timeout: 20000,
     });
-
+await page.waitForFunction(() => window.hljs !== undefined);
     // Wait for fonts to be ready
     await page.evaluateHandle("document.fonts.ready");
 
