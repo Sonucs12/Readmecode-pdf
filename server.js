@@ -26,9 +26,7 @@ const allowedOrigins = [
 ];
 
 app.use(bodyParser.json({ limit: "10mb" }));
-// Only allow all origins for visitor/badge routes
 app.use("/api", cors({ origin: "*" }), visitorRoutes);
-// Compatibility: also mount visitor routes at root so clients can call /init, /increment, /badge
 app.use("/", cors({ origin: "*" }), visitorRoutes);
 app.use(compression());
 app.use(
@@ -45,10 +43,7 @@ app.use(
   })
 );
 
-// Use PDF routes
 app.use(pdfRoutes.router);
-
-// Health check
 app.get("/health", (req, res) => {
   const pdfHealth = pdfRoutes.getPDFHealthStatus();
   res.json({
@@ -72,17 +67,13 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: "Internal server error" });
 });
 
-// Health check
 app.get("/", (req, res) => res.send("ReadmeCodeGen API is running"));
 
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
-
-  // Pre-warm browser
   pdfRoutes.initializeBrowser();
 });
 
-// Add error handling for uncaught exceptions
 process.on("uncaughtException", (error) => {
   console.error("❌Uncaught Exception:", error);
   process.exit(1);

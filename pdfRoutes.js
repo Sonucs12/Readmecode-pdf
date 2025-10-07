@@ -169,8 +169,7 @@ async function generatePDF(html) {
       waitUntil: "networkidle0",
       timeout: 20000,
     });
-await page.waitForFunction(() => window.hljs !== undefined);
-    // Wait for fonts to be ready
+    await page.waitForFunction(() => window.hljs !== undefined);
     await page.evaluateHandle("document.fonts.ready");
 
     const pdfBuffer = await page.pdf({
