@@ -7,15 +7,14 @@ const crypto = require("crypto");
 
 const router = express.Router();
 
-// PDF generation configuration
+// PDF generation variables
 let browserWSEndpoint = null;
 let browserInstance = null;
 let browserLastUsed = Date.now();
 const BROWSER_IDLE_TIMEOUT = 5 * 60 * 1000;
 const MAX_PAGES = 10;
-const PDF_GENERATION_TIMEOUT = 90000; // 90 seconds for Render free tier cold starts
 
-// In-memory cache
+// In-memory cache for frequently accessed PDFs
 const memoryCache = new Map();
 const MAX_MEMORY_CACHE_SIZE = 50;
 const MEMORY_CACHE_TTL = 10 * 60 * 1000;
@@ -54,6 +53,7 @@ function getFromMemoryCache(key) {
   const cached = memoryCache.get(key);
   if (!cached) return null;
 
+  // Check if cache is expired
   if (Date.now() - cached.timestamp > MEMORY_CACHE_TTL) {
     memoryCache.delete(key);
     return null;
@@ -62,7 +62,7 @@ function getFromMemoryCache(key) {
   return cached.buffer;
 }
 
-// Cleanup old cached PDFs
+// Cleanup old cached PDFs (runs asynchronously)
 async function cleanupOldCache() {
   if (!fsSync.existsSync(CACHE_DIR)) return;
 
@@ -88,6 +88,7 @@ async function cleanupOldCache() {
   }
 }
 
+// Schedule periodic cleanup
 setInterval(() => {
   cleanupOldCache().catch(console.error);
 }, 60 * 60 * 1000);
@@ -100,6 +101,7 @@ async function getBrowser() {
       return browserInstance;
     }
 
+    // Launch new browser instance
     console.log("🔥 Launching new browser instance...");
     browserInstance = await puppeteer.launch({
       executablePath: puppeteer.executablePath(),
@@ -124,6 +126,7 @@ async function getBrowser() {
     browserWSEndpoint = browserInstance.wsEndpoint();
     browserLastUsed = Date.now();
 
+    // Set up browser disconnect handler
     browserInstance.on("disconnected", () => {
       console.log("❌ Browser disconnected");
       browserInstance = null;
@@ -137,10 +140,10 @@ async function getBrowser() {
   }
 }
 
-// Close idle browser
+// Close idle browser to save resources
 setInterval(async () => {
   if (browserInstance && Date.now() - browserLastUsed > BROWSER_IDLE_TIMEOUT) {
-    console.log("⏰ Closing idle browser...");
+    console.log(" Closing idle browser...");
     try {
       await browserInstance.close();
       browserInstance = null;
@@ -151,7 +154,7 @@ setInterval(async () => {
   }
 }, 60 * 1000);
 
-// Generate PDF with extended timeout for Render free tier
+// Generate PDF
 async function generatePDF(html) {
   const browser = await getBrowser();
   let page = null;
@@ -159,22 +162,14 @@ async function generatePDF(html) {
   try {
     page = await browser.newPage();
 
-    // Set extended timeout for cold starts on Render free tier
-    page.setDefaultTimeout(PDF_GENERATION_TIMEOUT);
-    page.setDefaultNavigationTimeout(PDF_GENERATION_TIMEOUT);
-
     await page.setViewport({ width: 1920, height: 1080 });
     await page.setJavaScriptEnabled(true);
 
     await page.setContent(html, {
       waitUntil: "networkidle0",
-      timeout: PDF_GENERATION_TIMEOUT,
+      timeout: 20000,
     });
-    
-    await page.waitForFunction(() => window.hljs !== undefined, {
-      timeout: PDF_GENERATION_TIMEOUT,
-    });
-    
+    await page.waitForFunction(() => window.hljs !== undefined);
     await page.evaluateHandle("document.fonts.ready");
 
     const pdfBuffer = await page.pdf({
@@ -186,7 +181,7 @@ async function generatePDF(html) {
       headerTemplate: "<div></div>",
       footerTemplate: `
           <div style="font-size: 10px; width: 100%; color: #666; padding-left: 40px; padding-right: 40px; display: flex; justify-content: space-between; align-items: center;">
-            <span>Readmecodegen.com</span>
+            <span>ReadmeCodeGen</span>
             <div>Page <span class="pageNumber"></span></div>
           </div>
         `,
@@ -230,7 +225,7 @@ router.post("/generate-pdf", async (req, res) => {
   const cacheKey = getCacheKey(html);
   const cacheFilePath = getCacheFilePath(cacheKey);
 
-  // Check memory cache
+  // Check memory cache first (fastest)
   const memoryCached = getFromMemoryCache(cacheKey);
   if (memoryCached) {
     console.log("💾 Serving PDF from memory cache");
@@ -240,12 +235,13 @@ router.post("/generate-pdf", async (req, res) => {
     return res.send(memoryCached);
   }
 
-  // Check disk cache
+  // Check disk cache (second fastest)
   try {
     if (fsSync.existsSync(cacheFilePath)) {
       console.log("💾 Serving PDF from disk cache");
       const pdfBuffer = await fs.readFile(cacheFilePath);
 
+      // Add to memory cache for next request
       addToMemoryCache(cacheKey, pdfBuffer);
 
       res.setHeader("Content-Type", "application/pdf");
@@ -262,12 +258,11 @@ router.post("/generate-pdf", async (req, res) => {
     console.log("🔥 Generating new PDF...");
     const pdfBuffer = await generatePDF(html);
 
-    // Save to cache asynchronously
     Promise.all([
       fs
         .writeFile(cacheFilePath, pdfBuffer)
         .then(() => {
-          console.log(`✅ Saved PDF to disk cache`);
+          console.log(`Saved PDF to disk cache`);
         })
         .catch((err) => {
           console.error("❌ Failed to save PDF to disk cache:", err);
@@ -282,13 +277,11 @@ router.post("/generate-pdf", async (req, res) => {
     res.send(pdfBuffer);
   } catch (err) {
     console.error("PDF generation error:", err);
-    res.status(500).json({ 
-      error: err.message || "Error generating PDF",
-      note: "If this is the first request after inactivity, the server may need 50+ seconds to wake up on Render free tier"
-    });
+    res.status(500).json({ error: err.message || "Error generating PDF" });
   }
 });
 
+// Function to initialize browser (for pre-warming)
 async function initializeBrowser() {
   try {
     await getBrowser();
@@ -298,6 +291,7 @@ async function initializeBrowser() {
   }
 }
 
+// Function to close browser on shutdown
 async function closeBrowser() {
   if (browserInstance) {
     try {
@@ -309,6 +303,7 @@ async function closeBrowser() {
   }
 }
 
+// Function to get health status for PDF service
 function getPDFHealthStatus() {
   return {
     browserConnected: browserInstance?.isConnected() || false,
