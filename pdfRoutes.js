@@ -7,14 +7,16 @@ const crypto = require("crypto");
 
 const router = express.Router();
 
-// PDF generation variables
+// PDF generation configuration
 let browserWSEndpoint = null;
 let browserInstance = null;
 let browserLastUsed = Date.now();
 const BROWSER_IDLE_TIMEOUT = 5 * 60 * 1000;
 const MAX_PAGES = 10;
+const PDF_GENERATION_TIMEOUT = 20000;
+const MAX_RETRIES = 1;
 
-// In-memory cache for frequently accessed PDFs
+// In-memory cache
 const memoryCache = new Map();
 const MAX_MEMORY_CACHE_SIZE = 50;
 const MEMORY_CACHE_TTL = 10 * 60 * 1000;
@@ -53,7 +55,6 @@ function getFromMemoryCache(key) {
   const cached = memoryCache.get(key);
   if (!cached) return null;
 
-  // Check if cache is expired
   if (Date.now() - cached.timestamp > MEMORY_CACHE_TTL) {
     memoryCache.delete(key);
     return null;
@@ -62,7 +63,7 @@ function getFromMemoryCache(key) {
   return cached.buffer;
 }
 
-// Cleanup old cached PDFs (runs asynchronously)
+// Cleanup old cached PDFs (runs every 24 hours)
 async function cleanupOldCache() {
   if (!fsSync.existsSync(CACHE_DIR)) return;
 
@@ -88,7 +89,6 @@ async function cleanupOldCache() {
   }
 }
 
-// Schedule periodic cleanup
 setInterval(() => {
   cleanupOldCache().catch(console.error);
 }, 60 * 60 * 1000);
@@ -101,7 +101,6 @@ async function getBrowser() {
       return browserInstance;
     }
 
-    // Launch new browser instance
     console.log("🔥 Launching new browser instance...");
     browserInstance = await puppeteer.launch({
       executablePath: puppeteer.executablePath(),
@@ -126,7 +125,6 @@ async function getBrowser() {
     browserWSEndpoint = browserInstance.wsEndpoint();
     browserLastUsed = Date.now();
 
-    // Set up browser disconnect handler
     browserInstance.on("disconnected", () => {
       console.log("❌ Browser disconnected");
       browserInstance = null;
@@ -140,10 +138,10 @@ async function getBrowser() {
   }
 }
 
-// Close idle browser to save resources
+// Close idle browser
 setInterval(async () => {
   if (browserInstance && Date.now() - browserLastUsed > BROWSER_IDLE_TIMEOUT) {
-    console.log(" Closing idle browser...");
+    console.log("⏰ Closing idle browser...");
     try {
       await browserInstance.close();
       browserInstance = null;
@@ -154,8 +152,8 @@ setInterval(async () => {
   }
 }, 60 * 1000);
 
-// Generate PDF
-async function generatePDF(html) {
+// Generate PDF with timeout handling
+async function generatePDF(html, retryCount = 0) {
   const browser = await getBrowser();
   let page = null;
 
@@ -167,9 +165,11 @@ async function generatePDF(html) {
 
     await page.setContent(html, {
       waitUntil: "networkidle0",
-      timeout: 20000,
+      timeout: PDF_GENERATION_TIMEOUT,
     });
-    await page.waitForFunction(() => window.hljs !== undefined);
+    await page.waitForFunction(() => window.hljs !== undefined, {
+      timeout: PDF_GENERATION_TIMEOUT,
+    });
     await page.evaluateHandle("document.fonts.ready");
 
     const pdfBuffer = await page.pdf({
@@ -188,6 +188,39 @@ async function generatePDF(html) {
     });
 
     return pdfBuffer;
+  } catch (err) {
+    // Retry logic for timeout errors
+    if (
+      (err.name === "TimeoutError" || err.message.includes("timeout")) &&
+      retryCount < MAX_RETRIES
+    ) {
+      console.log(`⚠️ Timeout occurred, retrying... (Attempt ${retryCount + 1}/${MAX_RETRIES})`);
+      
+      // Close the failed page and browser instance
+      if (page) {
+        try {
+          await page.close();
+        } catch (closeErr) {
+          console.error("Error closing page:", closeErr);
+        }
+      }
+      
+      // Force browser restart on retry
+      if (browserInstance) {
+        try {
+          await browserInstance.close();
+          browserInstance = null;
+          browserWSEndpoint = null;
+        } catch (closeErr) {
+          console.error("Error closing browser:", closeErr);
+        }
+      }
+
+      // Retry with incremented count
+      return generatePDF(html, retryCount + 1);
+    }
+
+    throw err;
   } finally {
     if (page) {
       try {
@@ -225,7 +258,7 @@ router.post("/generate-pdf", async (req, res) => {
   const cacheKey = getCacheKey(html);
   const cacheFilePath = getCacheFilePath(cacheKey);
 
-  // Check memory cache first (fastest)
+  // Check memory cache
   const memoryCached = getFromMemoryCache(cacheKey);
   if (memoryCached) {
     console.log("💾 Serving PDF from memory cache");
@@ -235,13 +268,12 @@ router.post("/generate-pdf", async (req, res) => {
     return res.send(memoryCached);
   }
 
-  // Check disk cache (second fastest)
+  // Check disk cache
   try {
     if (fsSync.existsSync(cacheFilePath)) {
       console.log("💾 Serving PDF from disk cache");
       const pdfBuffer = await fs.readFile(cacheFilePath);
 
-      // Add to memory cache for next request
       addToMemoryCache(cacheKey, pdfBuffer);
 
       res.setHeader("Content-Type", "application/pdf");
@@ -253,16 +285,17 @@ router.post("/generate-pdf", async (req, res) => {
     console.error("❌ Failed to read cached PDF:", err);
   }
 
-  // Generate new PDF
+  // Generate new PDF with automatic retry
   try {
     console.log("🔥 Generating new PDF...");
     const pdfBuffer = await generatePDF(html);
 
+    // Save to cache asynchronously
     Promise.all([
       fs
         .writeFile(cacheFilePath, pdfBuffer)
         .then(() => {
-          console.log(`Saved PDF to disk cache`);
+          console.log(`✅ Saved PDF to disk cache`);
         })
         .catch((err) => {
           console.error("❌ Failed to save PDF to disk cache:", err);
@@ -281,7 +314,6 @@ router.post("/generate-pdf", async (req, res) => {
   }
 });
 
-// Function to initialize browser (for pre-warming)
 async function initializeBrowser() {
   try {
     await getBrowser();
@@ -291,7 +323,6 @@ async function initializeBrowser() {
   }
 }
 
-// Function to close browser on shutdown
 async function closeBrowser() {
   if (browserInstance) {
     try {
@@ -303,7 +334,6 @@ async function closeBrowser() {
   }
 }
 
-// Function to get health status for PDF service
 function getPDFHealthStatus() {
   return {
     browserConnected: browserInstance?.isConnected() || false,
