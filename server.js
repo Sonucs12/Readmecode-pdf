@@ -21,7 +21,7 @@ const PORT = process.env.PORT || 3000;
 const allowedOrigins = [
   "https://readmecodegen.vercel.app",
   "https://www.readmecodegen.com",
-  "https://pdfwrite.vercel.app/",
+  "https://pdfwrite.vercel.app",
 ];
 
 app.use(bodyParser.json({ limit: "10mb" }));
