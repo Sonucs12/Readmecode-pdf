@@ -13,7 +13,7 @@ let browserInstance = null;
 let browserLastUsed = Date.now();
 const BROWSER_IDLE_TIMEOUT = 5 * 60 * 1000;
 const MAX_PAGES = 10;
-const PDF_GENERATION_TIMEOUT = 20000;
+const PDF_GENERATION_TIMEOUT = 30000;
 const MAX_RETRIES = 1;
 
 // In-memory cache
@@ -63,7 +63,7 @@ function getFromMemoryCache(key) {
   return cached.buffer;
 }
 
-// Cleanup old cached PDFs (runs every 24 hours)
+// Cleanup old cached PDFs
 async function cleanupOldCache() {
   if (!fsSync.existsSync(CACHE_DIR)) return;
 
@@ -152,12 +152,30 @@ setInterval(async () => {
   }
 }, 60 * 1000);
 
-// Generate PDF with timeout handling
+// Safe page close helper
+async function safeClosePage(page) {
+  if (!page) return;
+  
+  try {
+    if (!page.isClosed()) {
+      await page.close();
+    }
+  } catch (err) {
+    // Silently ignore connection errors when closing
+    if (!err.message.includes("Connection closed")) {
+      console.error("Error closing page:", err);
+    }
+  }
+}
+
+// Generate PDF with timeout handling and retry
 async function generatePDF(html, retryCount = 0) {
-  const browser = await getBrowser();
+  let browser = null;
   let page = null;
+  let shouldCleanup = true;
 
   try {
+    browser = await getBrowser();
     page = await browser.newPage();
 
     await page.setViewport({ width: 1920, height: 1080 });
@@ -167,9 +185,11 @@ async function generatePDF(html, retryCount = 0) {
       waitUntil: "networkidle0",
       timeout: PDF_GENERATION_TIMEOUT,
     });
+    
     await page.waitForFunction(() => window.hljs !== undefined, {
       timeout: PDF_GENERATION_TIMEOUT,
     });
+    
     await page.evaluateHandle("document.fonts.ready");
 
     const pdfBuffer = await page.pdf({
@@ -189,45 +209,40 @@ async function generatePDF(html, retryCount = 0) {
 
     return pdfBuffer;
   } catch (err) {
-    // Retry logic for timeout errors
-    if (
-      (err.name === "TimeoutError" || err.message.includes("timeout")) &&
-      retryCount < MAX_RETRIES
-    ) {
-      console.log(`⚠️ Timeout occurred, retrying... (Attempt ${retryCount + 1}/${MAX_RETRIES})`);
+    const isTimeout = err.name === "TimeoutError" || err.message.includes("timeout");
+    
+    if (isTimeout && retryCount < MAX_RETRIES) {
+      console.log(`⚠️ Timeout occurred, retrying... (Attempt ${retryCount + 2}/${MAX_RETRIES + 1})`);
       
-      // Close the failed page and browser instance
-      if (page) {
-        try {
-          await page.close();
-        } catch (closeErr) {
-          console.error("Error closing page:", closeErr);
-        }
-      }
+      // Mark that we shouldn't cleanup in finally block
+      shouldCleanup = false;
       
-      // Force browser restart on retry
+      // Close page first
+      await safeClosePage(page);
+      
+      // Force browser restart
       if (browserInstance) {
         try {
           await browserInstance.close();
-          browserInstance = null;
-          browserWSEndpoint = null;
         } catch (closeErr) {
-          console.error("Error closing browser:", closeErr);
+          // Ignore errors during forced close
         }
+        browserInstance = null;
+        browserWSEndpoint = null;
       }
 
+      // Wait a moment before retry
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
       // Retry with incremented count
       return generatePDF(html, retryCount + 1);
     }
 
     throw err;
   } finally {
-    if (page) {
-      try {
-        await page.close();
-      } catch (err) {
-        console.error("Error closing page:", err);
-      }
+    // Only cleanup if we're not retrying
+    if (shouldCleanup) {
+      await safeClosePage(page);
     }
   }
 }
