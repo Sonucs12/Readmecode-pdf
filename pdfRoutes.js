@@ -13,8 +13,7 @@ let browserInstance = null;
 let browserLastUsed = Date.now();
 const BROWSER_IDLE_TIMEOUT = 5 * 60 * 1000;
 const MAX_PAGES = 10;
-const PDF_GENERATION_TIMEOUT = 30000;
-const MAX_RETRIES = 1;
+const PDF_GENERATION_TIMEOUT = 90000; // 90 seconds for Render free tier cold starts
 
 // In-memory cache
 const memoryCache = new Map();
@@ -152,31 +151,17 @@ setInterval(async () => {
   }
 }, 60 * 1000);
 
-// Safe page close helper
-async function safeClosePage(page) {
-  if (!page) return;
-  
-  try {
-    if (!page.isClosed()) {
-      await page.close();
-    }
-  } catch (err) {
-    // Silently ignore connection errors when closing
-    if (!err.message.includes("Connection closed")) {
-      console.error("Error closing page:", err);
-    }
-  }
-}
-
-// Generate PDF with timeout handling and retry
-async function generatePDF(html, retryCount = 0) {
-  let browser = null;
+// Generate PDF with extended timeout for Render free tier
+async function generatePDF(html) {
+  const browser = await getBrowser();
   let page = null;
-  let shouldCleanup = true;
 
   try {
-    browser = await getBrowser();
     page = await browser.newPage();
+
+    // Set extended timeout for cold starts on Render free tier
+    page.setDefaultTimeout(PDF_GENERATION_TIMEOUT);
+    page.setDefaultNavigationTimeout(PDF_GENERATION_TIMEOUT);
 
     await page.setViewport({ width: 1920, height: 1080 });
     await page.setJavaScriptEnabled(true);
@@ -201,48 +186,20 @@ async function generatePDF(html, retryCount = 0) {
       headerTemplate: "<div></div>",
       footerTemplate: `
           <div style="font-size: 10px; width: 100%; color: #666; padding-left: 40px; padding-right: 40px; display: flex; justify-content: space-between; align-items: center;">
-            <span>ReadmeCodeGen</span>
+            <span>Readmecodegen.com</span>
             <div>Page <span class="pageNumber"></span></div>
           </div>
         `,
     });
 
     return pdfBuffer;
-  } catch (err) {
-    const isTimeout = err.name === "TimeoutError" || err.message.includes("timeout");
-    
-    if (isTimeout && retryCount < MAX_RETRIES) {
-      console.log(`⚠️ Timeout occurred, retrying... (Attempt ${retryCount + 2}/${MAX_RETRIES + 1})`);
-      
-      // Mark that we shouldn't cleanup in finally block
-      shouldCleanup = false;
-      
-      // Close page first
-      await safeClosePage(page);
-      
-      // Force browser restart
-      if (browserInstance) {
-        try {
-          await browserInstance.close();
-        } catch (closeErr) {
-          // Ignore errors during forced close
-        }
-        browserInstance = null;
-        browserWSEndpoint = null;
-      }
-
-      // Wait a moment before retry
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Retry with incremented count
-      return generatePDF(html, retryCount + 1);
-    }
-
-    throw err;
   } finally {
-    // Only cleanup if we're not retrying
-    if (shouldCleanup) {
-      await safeClosePage(page);
+    if (page) {
+      try {
+        await page.close();
+      } catch (err) {
+        console.error("Error closing page:", err);
+      }
     }
   }
 }
@@ -300,7 +257,7 @@ router.post("/generate-pdf", async (req, res) => {
     console.error("❌ Failed to read cached PDF:", err);
   }
 
-  // Generate new PDF with automatic retry
+  // Generate new PDF
   try {
     console.log("🔥 Generating new PDF...");
     const pdfBuffer = await generatePDF(html);
@@ -325,7 +282,10 @@ router.post("/generate-pdf", async (req, res) => {
     res.send(pdfBuffer);
   } catch (err) {
     console.error("PDF generation error:", err);
-    res.status(500).json({ error: err.message || "Error generating PDF" });
+    res.status(500).json({ 
+      error: err.message || "Error generating PDF",
+      note: "If this is the first request after inactivity, the server may need 50+ seconds to wake up on Render free tier"
+    });
   }
 });
 
