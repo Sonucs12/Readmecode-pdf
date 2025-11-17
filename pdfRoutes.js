@@ -233,8 +233,8 @@ class PDFGenerator {
 
       // Create clickable link or plain text based on whether URL is provided
       const brandElement = brandUrl 
-        ? `<a href="${footerBrandUrl}" style="color: #666; text-decoration: none; border-bottom: 1px solid transparent; transition: all 0.2s;" onmouseover="this.style.color='#3b82f6'; this.style.borderBottomColor='#3b82f6';" onmouseout="this.style.color='#666'; this.style.borderBottomColor='transparent';">${footerBrandName}</a>`
-        : `<span>${footerBrandName}</span>`;
+        ? `<a href="${footerBrandUrl}" style="color: #666; text-decoration: none; transition: all 0.2s;" onmouseover="this.style.color='#3b82f6'; this.style.borderBottomColor='#3b82f6';" onmouseout="this.style.color='#666'; this.style.borderBottomColor='transparent';">${footerBrandName}</a>`
+        : `<span>${footerBrandUrl}</span>`;
 
       const pdfBuffer = await page.pdf({
         format: "A4",
