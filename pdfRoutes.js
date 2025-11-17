@@ -211,7 +211,7 @@ class PDFGenerator {
     this.defaultBrandName = defaultBrandName;
   }
 
-  async generatePDF(html, brandName = null, brandUrl = null) {
+  async generatePDF(html, brandName = null) {
     const browser = await this.browserManager.getBrowser();
     let page = null;
 
@@ -225,16 +225,17 @@ class PDFGenerator {
         waitUntil: "networkidle0",
         timeout: 20000,
       });
-      await page.waitForFunction(() => window.hljs !== undefined);
+      
+      // Wait for syntax highlighting if present
+      try {
+        await page.waitForFunction(() => window.hljs !== undefined, { timeout: 5000 });
+      } catch (err) {
+        console.log("⚠️ hljs not found, skipping highlight wait");
+      }
+      
       await page.evaluateHandle("document.fonts.ready");
 
       const footerBrandName = brandName || this.defaultBrandName;
-      const footerBrandUrl = brandUrl || "https://readmecodegen.vercel.app";
-
-      // Create clickable link or plain text based on whether URL is provided
-      const brandElement = brandUrl 
-        ? `<a href="${footerBrandUrl}" style="color: #666; text-decoration: none; border-bottom: 1px solid transparent; transition: all 0.2s;" onmouseover="this.style.color='#3b82f6'; this.style.borderBottomColor='#3b82f6';" onmouseout="this.style.color='#666'; this.style.borderBottomColor='transparent';">${footerBrandName}</a>`
-        : `<span>${footerBrandName}</span>`;
 
       const pdfBuffer = await page.pdf({
         format: "A4",
@@ -245,7 +246,7 @@ class PDFGenerator {
         headerTemplate: "<div></div>",
         footerTemplate: `
           <div style="font-size: 10px; width: 100%; color: #666; padding-left: 40px; padding-right: 40px; display: flex; justify-content: space-between; align-items: center;">
-            ${brandElement}
+            <span>${footerBrandName}</span>
             <div>Page <span class="pageNumber"></span></div>
           </div>
         `,
