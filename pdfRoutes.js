@@ -15,6 +15,7 @@ class CacheManager {
     this.maxMemoryCacheSize = maxMemoryCacheSize;
     this.memoryCacheTTL = memoryCacheTTL;
     this.initializeCacheDirectory();
+    this.scheduleCleanup();
   }
 
   initializeCacheDirectory() {
@@ -28,8 +29,8 @@ class CacheManager {
     }
   }
 
-  getCacheKey(html) {
-    return crypto.createHash("md5").update(html).digest("hex");
+  getCacheKey(content) {
+    return crypto.createHash("md5").update(content).digest("hex");
   }
 
   getCacheFilePath(hash) {
@@ -103,6 +104,12 @@ class CacheManager {
     } catch (err) {
       console.error("Error during cache cleanup:", err);
     }
+  }
+
+  scheduleCleanup() {
+    setInterval(() => {
+      this.cleanupOldCache().catch(console.error);
+    }, 60 * 60 * 1000);
   }
 
   getMemoryCacheSize() {
@@ -225,14 +232,7 @@ class PDFGenerator {
         waitUntil: "networkidle0",
         timeout: 20000,
       });
-      
-      // Wait for syntax highlighting if present
-      try {
-        await page.waitForFunction(() => window.hljs !== undefined, { timeout: 5000 });
-      } catch (err) {
-        console.log("⚠️ hljs not found, skipping highlight wait");
-      }
-      
+      await page.waitForFunction(() => window.hljs !== undefined);
       await page.evaluateHandle("document.fonts.ready");
 
       const footerBrandName = brandName || this.defaultBrandName;
@@ -272,11 +272,6 @@ class PDFService {
     this.cacheManager = new CacheManager(CACHE_DIR);
     this.browserManager = new BrowserManager();
     this.pdfGenerator = new PDFGenerator(this.browserManager);
-
-    // Schedule periodic cache cleanup
-    setInterval(() => {
-      this.cacheManager.cleanupOldCache().catch(console.error);
-    }, 60 * 60 * 1000);
   }
 
   async generateAndCachePDF(html, brandName = null) {
