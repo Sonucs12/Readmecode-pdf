@@ -1,122 +1,319 @@
 const express = require("express");
-const cors = require("cors");
-const bodyParser = require("body-parser");
-const compression = require("compression");
-const visitorRoutes = require("./visitorRoutes");
-const pdfRoutes = require("./pdfRoutes");
+const puppeteer = require("puppeteer");
+const fs = require("fs").promises;
+const fsSync = require("fs");
+const path = require("path");
+const crypto = require("crypto");
 
-// Load environment variables
-if (process.env.NODE_ENV !== "production") {
-  console.log("🔥 Loading environment variables from .env.local");
-  require("dotenv").config({ path: ".env.local" });
-  console.log("🔥 Environment variables loaded");
-  console.log(
-    "Firebase Project ID:",
-    process.env.FIREBASE_PROJECT_ID ? "🔥 Set" : "❌ Missing"
-  );
-}
+const router = express.Router();
 
-const app = express();
-const PORT = process.env.PORT || 3000;
-const HOST = '0.0.0.0'; // Important for Render!
+// PDF generation variables
+let browserWSEndpoint = null;
+let browserInstance = null;
+let browserLastUsed = Date.now();
+const BROWSER_IDLE_TIMEOUT = 5 * 60 * 1000;
+const MAX_PAGES = 10;
 
-// Configuration
-const allowedOrigins = [
-  "https://readmecodegen.vercel.app",
-  "https://www.readmecodegen.com",
-  "https://pdfwrite.vercel.app",
-];
+// In-memory cache for frequently accessed PDFs
+const memoryCache = new Map();
+const MAX_MEMORY_CACHE_SIZE = 50;
+const MEMORY_CACHE_TTL = 10 * 60 * 1000;
 
-// Middleware
-app.use(bodyParser.json({ limit: "10mb" }));
-app.use(compression());
-
-// CORS configuration
-app.use(
-  cors({
-    origin: function (origin, callback) {
-      if (!origin) return callback(null, true);
-      if (allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      } else {
-        return callback(new Error("Not allowed by CORS"));
-      }
-    },
-    credentials: true,
-  })
-);
-
-// Routes
-app.use("/api", cors({ origin: "*" }), visitorRoutes);
-app.use("/", cors({ origin: "*" }), visitorRoutes);
-app.use(pdfRoutes.router);
-
-// Health check endpoint
-app.get("/health", (req, res) => {
-  const pdfHealth = pdfRoutes.getPDFHealthStatus();
-  res.json({
-    status: "OK",
-    timestamp: new Date().toISOString(),
-    ...pdfHealth,
-  });
-});
-
-// Root endpoint
-app.get("/", (req, res) => res.send("ReadmeCodeGen API is running"));
-
-// Error handling middleware
-app.use((err, req, res, next) => {
-  console.error("❌ Unhandled error:", err);
-  res.status(500).json({ error: "Internal server error" });
-});
-
-// Graceful shutdown
-async function gracefulShutdown(signal) {
-  console.log(`\n😴 Received ${signal}, shutting down gracefully...`);
-  
-  // Stop accepting new connections
-  server.close(() => {
-    console.log('✅ HTTP server closed');
-  });
-  
-  // Close browser
+const CACHE_DIR = path.join(__dirname, "pdf_cache");
+if (!fsSync.existsSync(CACHE_DIR)) {
   try {
-    await pdfRoutes.closeBrowser();
-    console.log('✅ Browser closed');
+    fsSync.mkdirSync(CACHE_DIR, { recursive: true });
+    console.log("🔥 pdf_cache folder created successfully");
   } catch (err) {
-    console.error('❌ Error closing browser:', err);
+    console.error("❌ Failed to create pdf_cache folder:", err);
   }
-  
-  process.exit(0);
 }
 
-process.on("SIGTERM", () => gracefulShutdown('SIGTERM'));
-process.on("SIGINT", () => gracefulShutdown('SIGINT'));
+function getCacheKey(html) {
+  return crypto.createHash("md5").update(html).digest("hex");
+}
 
-// Global error handlers
-process.on("uncaughtException", (error) => {
-  console.error("❌ Uncaught Exception:", error);
-  process.exit(1);
-});
+function getCacheFilePath(hash) {
+  return path.join(CACHE_DIR, `${hash}.pdf`);
+}
 
-process.on("unhandledRejection", (reason, promise) => {
-  console.error("❌ Unhandled Rejection at:", promise, "reason:", reason);
-  process.exit(1);
-});
+function addToMemoryCache(key, buffer) {
+  if (memoryCache.size >= MAX_MEMORY_CACHE_SIZE) {
+    const firstKey = memoryCache.keys().next().value;
+    memoryCache.delete(firstKey);
+  }
 
-// Start server
-const server = app.listen(PORT, HOST, () => {
-  console.log(`🚀 Server running on http://${HOST}:${PORT}`);
-  console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
-  
-  // Pre-warm browser after server starts
-  pdfRoutes.initializeBrowser().catch(err => {
-    console.error('❌ Failed to initialize browser:', err);
+  memoryCache.set(key, {
+    buffer,
+    timestamp: Date.now(),
   });
+}
+
+function getFromMemoryCache(key) {
+  const cached = memoryCache.get(key);
+  if (!cached) return null;
+
+  // Check if cache is expired
+  if (Date.now() - cached.timestamp > MEMORY_CACHE_TTL) {
+    memoryCache.delete(key);
+    return null;
+  }
+
+  return cached.buffer;
+}
+
+// Cleanup old cached PDFs (runs asynchronously)
+async function cleanupOldCache() {
+  if (!fsSync.existsSync(CACHE_DIR)) return;
+
+  try {
+    const files = await fs.readdir(CACHE_DIR);
+    const now = Date.now();
+    const cleanupPromises = files.map(async (file) => {
+      const filePath = path.join(CACHE_DIR, file);
+      try {
+        const stats = await fs.stat(filePath);
+        if (now - stats.mtimeMs > 1000 * 60 * 60 * 24) {
+          await fs.unlink(filePath);
+          console.log(`🗑️ Deleted old cache: ${file}`);
+        }
+      } catch (err) {
+        console.error("Error cleaning cache file:", file, err);
+      }
+    });
+
+    await Promise.all(cleanupPromises);
+  } catch (err) {
+    console.error("Error during cache cleanup:", err);
+  }
+}
+
+// Schedule periodic cleanup
+setInterval(() => {
+  cleanupOldCache().catch(console.error);
+}, 60 * 60 * 1000);
+
+// Browser management
+async function getBrowser() {
+  try {
+    if (browserInstance && browserInstance.isConnected()) {
+      browserLastUsed = Date.now();
+      return browserInstance;
+    }
+
+    // Launch new browser instance
+    console.log("🔥 Launching new browser instance...");
+    browserInstance = await puppeteer.launch({
+      executablePath: puppeteer.executablePath(),
+      headless: true,
+      args: [
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-dev-shm-usage",
+        "--disable-extensions",
+        "--disable-gpu",
+        "--disable-background-timer-throttling",
+        "--disable-backgrounding-occluded-windows",
+        "--disable-renderer-backgrounding",
+        "--disable-features=TranslateUI",
+        "--disable-ipc-flooding-protection",
+        "--no-first-run",
+        "--no-zygote",
+        "--single-process",
+      ],
+    });
+
+    browserWSEndpoint = browserInstance.wsEndpoint();
+    browserLastUsed = Date.now();
+
+    // Set up browser disconnect handler
+    browserInstance.on("disconnected", () => {
+      console.log("❌ Browser disconnected");
+      browserInstance = null;
+      browserWSEndpoint = null;
+    });
+
+    return browserInstance;
+  } catch (err) {
+    console.error("Failed to get browser:", err);
+    throw err;
+  }
+}
+
+// Close idle browser to save resources
+setInterval(async () => {
+  if (browserInstance && Date.now() - browserLastUsed > BROWSER_IDLE_TIMEOUT) {
+    console.log(" Closing idle browser...");
+    try {
+      await browserInstance.close();
+      browserInstance = null;
+      browserWSEndpoint = null;
+    } catch (err) {
+      console.error("Error closing idle browser:", err);
+    }
+  }
+}, 60 * 1000);
+
+// Generate PDF
+async function generatePDF(html) {
+  const browser = await getBrowser();
+  let page = null;
+
+  try {
+    page = await browser.newPage();
+
+    await page.setViewport({ width: 1920, height: 1080 });
+    await page.setJavaScriptEnabled(true);
+
+    await page.setContent(html, {
+      waitUntil: "networkidle0",
+      timeout: 20000,
+    });
+    await page.waitForFunction(() => window.hljs !== undefined);
+    await page.evaluateHandle("document.fonts.ready");
+
+    const pdfBuffer = await page.pdf({
+      format: "A4",
+      printBackground: true,
+      margin: { top: "20px", bottom: "40px", left: "20px", right: "20px" },
+      preferCSSPageSize: false,
+      displayHeaderFooter: true,
+      headerTemplate: "<div></div>",
+      footerTemplate: `
+          <div style="font-size: 10px; width: 100%; color: #666; padding-left: 40px; padding-right: 40px; display: flex; justify-content: space-between; align-items: center;">
+            <span>ReadmeCodeGen</span>
+            <div>Page <span class="pageNumber"></span></div>
+          </div>
+        `,
+    });
+
+    return pdfBuffer;
+  } finally {
+    if (page) {
+      try {
+        await page.close();
+      } catch (err) {
+        console.error("Error closing page:", err);
+      }
+    }
+  }
+}
+
+// Debug route
+router.get("/debug-pdf", async (req, res) => {
+  try {
+    const html =
+      "<h1>Hello from Render.this is text paragraph (Debug PDF)</h1>";
+    const pdfBuffer = await generatePDF(html);
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Length", pdfBuffer.length);
+    res.send(pdfBuffer);
+  } catch (err) {
+    console.error("Debug PDF generation error:", err);
+    res
+      .status(500)
+      .json({ error: err.message || "Error generating debug PDF" });
+  }
 });
 
-// Handle server errors
-server.on('error', (error) => {
-  console.error('❌ Server error:', error);
-  process.exit(1);
+// Generate PDF with multi-level caching
+router.post("/generate-pdf", async (req, res) => {
+  const { html } = req.body;
+  if (!html) return res.status(400).json({ error: "No HTML provided" });
+
+  const cacheKey = getCacheKey(html);
+  const cacheFilePath = getCacheFilePath(cacheKey);
+
+  // Check memory cache first (fastest)
+  const memoryCached = getFromMemoryCache(cacheKey);
+  if (memoryCached) {
+    console.log("💾 Serving PDF from memory cache");
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Length", memoryCached.length);
+    res.setHeader("X-Cache", "memory");
+    return res.send(memoryCached);
+  }
+
+  // Check disk cache (second fastest)
+  try {
+    if (fsSync.existsSync(cacheFilePath)) {
+      console.log("💾 Serving PDF from disk cache");
+      const pdfBuffer = await fs.readFile(cacheFilePath);
+
+      // Add to memory cache for next request
+      addToMemoryCache(cacheKey, pdfBuffer);
+
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Length", pdfBuffer.length);
+      res.setHeader("X-Cache", "disk");
+      return res.send(pdfBuffer);
+    }
+  } catch (err) {
+    console.error("❌ Failed to read cached PDF:", err);
+  }
+
+  // Generate new PDF
+  try {
+    console.log("🔥 Generating new PDF...");
+    const pdfBuffer = await generatePDF(html);
+
+    Promise.all([
+      fs
+        .writeFile(cacheFilePath, pdfBuffer)
+        .then(() => {
+          console.log(`Saved PDF to disk cache`);
+        })
+        .catch((err) => {
+          console.error("❌ Failed to save PDF to disk cache:", err);
+        }),
+
+      Promise.resolve(addToMemoryCache(cacheKey, pdfBuffer)),
+    ]).catch(console.error);
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Length", pdfBuffer.length);
+    res.setHeader("X-Cache", "miss");
+    res.send(pdfBuffer);
+  } catch (err) {
+    console.error("PDF generation error:", err);
+    res.status(500).json({ error: err.message || "Error generating PDF" });
+  }
 });
+
+// Function to initialize browser (for pre-warming)
+async function initializeBrowser() {
+  try {
+    await getBrowser();
+    console.log("🔥 Browser pre-warmed and ready");
+  } catch (err) {
+    console.error("❌ Failed to pre-warm browser:", err);
+  }
+}
+
+// Function to close browser on shutdown
+async function closeBrowser() {
+  if (browserInstance) {
+    try {
+      await browserInstance.close();
+      console.log("🔥 Browser closed");
+    } catch (err) {
+      console.error("Error closing browser:", err);
+    }
+  }
+}
+
+// Function to get health status for PDF service
+function getPDFHealthStatus() {
+  return {
+    browserConnected: browserInstance?.isConnected() || false,
+    memoryCacheSize: memoryCache.size,
+  };
+}
+
+module.exports = {
+  router,
+  initializeBrowser,
+  closeBrowser,
+  getPDFHealthStatus,
+};
