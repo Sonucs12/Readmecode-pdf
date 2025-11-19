@@ -221,9 +221,6 @@ class PDFGenerator {
       .page-border {
         width: 100%;
         height: 100%;
-        position: absolute;
-        top: 0;
-        left: 0;
         border: 2px solid #000;
         box-sizing: border-box;
       }
