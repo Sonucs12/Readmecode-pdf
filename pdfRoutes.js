@@ -213,22 +213,10 @@ class PDFGenerator {
       const pdfBuffer = await page.pdf({
         format: "A4",
         printBackground: true,
-        margin: { top: "40px", bottom: "20px", left: "20px", right: "20px" },
+        margin: { top: "40px", bottom: "40px", left: "20px", right: "20px" },
         preferCSSPageSize: false,
         displayHeaderFooter: true,
-    headerTemplate: `
-  <style>
-    .page-border {
-      position: absolute;
-      top: 30px;
-      left: 30px;
-      right: 30px;
-      bottom: 30px;
-      border: 2px solid #000;
-    }
-  </style>
-  <div class="page-border"></div>
-`,
+    headerTemplate: `<div></div>`,
 
         footerTemplate: `
           <div style="font-size: 10px; width: 100%; color: #666; padding-left: 40px; padding-right: 40px; display: flex; justify-content: space-between; align-items: center;">
