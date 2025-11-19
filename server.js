@@ -19,6 +19,9 @@ const allowedOrigins = [
   "https://readmecodegen.vercel.app",
   "https://www.readmecodegen.com",
   "https://pdfwrite.vercel.app",
+  "http://localhost:9002",
+  "https://notesnav.vercel.app"
+  
 ];
 
 // Middleware
