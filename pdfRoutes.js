@@ -216,17 +216,20 @@ class PDFGenerator {
         margin: { top: "40px", bottom: "40px", left: "20px", right: "20px" },
         preferCSSPageSize: false,
         displayHeaderFooter: true,
-       headerTemplate: `
-    <style>
-      .page-border {
-        width: 100%;
-        height: 100%;
-        border: 2px solid #000;
-        box-sizing: border-box;
-      }
-    </style>
-    <div class="page-border"></div>
-  `,
+    headerTemplate: `
+  <style>
+    .page-border {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      right: 10px;
+      bottom: 10px;
+      border: 2px solid #000;
+    }
+  </style>
+  <div class="page-border"></div>
+`,
+
         footerTemplate: `
           <div style="font-size: 10px; width: 100%; color: #666; padding-left: 40px; padding-right: 40px; display: flex; justify-content: space-between; align-items: center;">
             <span>${footerBrandName}</span>
