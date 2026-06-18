@@ -103,7 +103,7 @@ class CacheManager {
 
 // ==================== Browser Manager Class ====================
 class BrowserManager {
-  constructor(idleTimeout = 5 * 60 * 1000) {
+  constructor(idleTimeout = 5 * 80 * 1000) {
     this.browserInstance = null;
     this.browserWSEndpoint = null;
     this.browserLastUsed = Date.now();
