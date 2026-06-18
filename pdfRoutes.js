@@ -192,7 +192,7 @@ class PDFGenerator {
     this.defaultBrandName = defaultBrandName;
   }
 
-  async generatePDF(html, brandName = null, theme = "light") {
+  async generatePDF(html, brandName = null) {
     const browser = await this.browserManager.getBrowser();
     let page = null;
 
@@ -209,20 +209,6 @@ class PDFGenerator {
       await page.evaluateHandle("document.fonts.ready");
 
       const footerBrandName = brandName || this.defaultBrandName;
-      const isDarkMode = theme === "dark";
-      const bgColor = isDarkMode ? '#121212' : '#ffffff';
-      const textColor = isDarkMode ? '#9ca3af' : '#666666';
-
-      // Inject background color directly to html to cover margins simply
-      const injectedHtml = html.replace(
-        '</head>',
-        `<style>html { background-color: ${bgColor} !important; -webkit-print-color-adjust: exact; }</style></head>`
-      );
-
-      await page.setContent(injectedHtml, {
-        waitUntil: "networkidle0",
-        timeout: 20000,
-      });
 
       const pdfBuffer = await page.pdf({
         format: "A4",
@@ -230,9 +216,10 @@ class PDFGenerator {
         margin: { top: "40px", bottom: "40px", left: "20px", right: "20px" },
         preferCSSPageSize: false,
         displayHeaderFooter: true,
-        headerTemplate: `<div></div>`,
+    headerTemplate: `<div></div>`,
+
         footerTemplate: `
-          <div style="font-size: 10px; width: 100%; color: ${textColor}; padding-left: 40px; padding-right: 40px; display: flex; justify-content: space-between; align-items: center;">
+          <div style="font-size: 10px; width: 100%; color: #666; padding-left: 40px; padding-right: 40px; display: flex; justify-content: space-between; align-items: center;">
             <span>${footerBrandName}</span>
             <div>Page <span class="pageNumber"></span></div>
           </div>
@@ -261,7 +248,7 @@ class PDFService {
     this.pdfGenerator = new PDFGenerator(this.browserManager);
   }
 
-  async generateAndCachePDF(html, brandName = null, theme = "light") {
+  async generateAndCachePDF(html, brandName = null) {
     const cacheContent = brandName ? `${html}||${brandName}` : html;
     const cacheKey = this.cacheManager.getCacheKey(cacheContent);
     const cacheFilePath = this.cacheManager.getCacheFilePath(cacheKey);
@@ -283,7 +270,7 @@ class PDFService {
 
     // Generate new PDF
     console.log("→ Generating new PDF");
-    const pdfBuffer = await this.pdfGenerator.generatePDF(html, brandName, theme);
+    const pdfBuffer = await this.pdfGenerator.generatePDF(html, brandName);
     
     // Save to caches asynchronously
     Promise.all([
@@ -331,14 +318,14 @@ router.get("/debug-pdf", async (req, res) => {
 });
 
 router.post("/generate-pdf", async (req, res) => {
-  const { html, brandName, theme } = req.body;
+  const { html, brandName } = req.body;
   
   if (!html) {
     return res.status(400).json({ error: "No HTML provided" });
   }
 
   try {
-    const result = await pdfService.generateAndCachePDF(html, brandName, theme);
+    const result = await pdfService.generateAndCachePDF(html, brandName);
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Length", result.buffer.length);
     res.setHeader("X-Cache", result.cacheType);
